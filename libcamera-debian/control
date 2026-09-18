@@ -1,0 +1,42 @@
+Source: libcamera
+Section: libs
+Priority: optional
+Maintainer: Clover2 Build <builder@clover2>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               pkg-config,
+               cmake,
+               clang,
+               openssl,
+               libcrypto++-dev,
+               libdw-dev,
+               libevent-dev,
+               libexif-dev,
+               libdrm-dev,
+               libgstreamer1.0-dev,
+               libgstreamer-plugins-base1.0-dev,
+               libgtest-dev,
+               libjpeg-dev,
+               liblttng-ust-dev,
+               libpython3-dev,
+               libssl-dev,
+               libtiff-dev,
+               libudev-dev,
+               libunwind-dev,
+               libyaml-dev,
+               libyuv-dev,
+               nlohmann-json3-dev,
+               lttng-tools,
+               pybind11-dev,
+               python3-jinja2,
+               python3-ply,
+               python3-yaml
+Standards-Version: 4.6.2
+
+Package: libcamera
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: libcamera — camera stack for the Clover2 onboard computer
+ Built from the raspberrypi/libcamera fork with the rpi/vc4 + rpi/pisp
+ pipelines and gstreamer/pycamera enabled, packaged for Clover2 images.

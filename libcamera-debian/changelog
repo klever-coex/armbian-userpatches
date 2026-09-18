@@ -1,0 +1,6 @@
+libcamera (0.7.1+rpt20260429-1) unstable; urgency=medium
+
+  * Clover2 build of the raspberrypi/libcamera fork
+    (rpi/vc4 + rpi/pisp pipelines, gstreamer + pycamera enabled)
+
+ -- Clover2 Build <builder@clover2>  Wed, 16 Sep 2026 00:00:00 +0000

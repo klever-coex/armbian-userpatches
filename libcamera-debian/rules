@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+# clover2 libcamera packaging — meson flags mirror clover2-pkgs config.yaml
+
+export DEB_CXXFLAGS_MAINT_APPEND = -O2
+
+%:
+	dh $@ --buildsystem=meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--prefix=/usr \
+		-Dpipelines=rpi/vc4,rpi/pisp \
+		-Dipas=rpi/vc4,rpi/pisp \
+		-Dv4l2=enabled \
+		-Dgstreamer=enabled \
+		-Dtest=false \
+		-Dlc-compliance=disabled \
+		-Dcam=enabled \
+		-Dqcam=disabled \
+		-Ddocumentation=disabled \
+		-Dpycamera=enabled
+
+override_dh_auto_test:
+	# building with -Dtest=false already skips the test suites
