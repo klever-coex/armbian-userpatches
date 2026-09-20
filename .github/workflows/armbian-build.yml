@@ -1,11 +1,6 @@
 name: Build images
 
 on:
-  push:
-    branches: [master]
-  pull_request:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       clover2_ref:
@@ -32,12 +27,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runs-on: ubuntu-24.04
-            config: clover2-vb
-            board: uefi-x86
-            arch: amd64
-            publish: false
-          # TODO: needs a config-clover2-vb-arm64.conf (BOARD=uefi-arm64)
+          # - runs-on: ubuntu-24.04
+          #   config: clover2-vb
+          #   board: uefi-x86
+          #   arch: amd64
+          #   publish: false
           # - runs-on: ubuntu-24.04-arm
           #   config: clover2-vb-arm64
           #   board: uefi-arm64
@@ -84,7 +78,7 @@ jobs:
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
           # upstream commit the extensions are validated against
-          armbian_branch: 95c829f
+          armbian_branch: 901cae784dc524b0e6b9eafc734bf968afe92f63 # upstream master the extensions are validated against
           armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
 
       - name: Save clover2 build cache
