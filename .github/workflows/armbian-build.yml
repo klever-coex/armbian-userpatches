@@ -1,4 +1,4 @@
-name: Build VM
+name: Build images
 
 on:
   push:
@@ -7,61 +7,133 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      clover2_ref:
+        description: "clover2 tag/commit/branch (empty = pinned default)"
+        required: false
+        default: ""
+      upload_s3:
+        description: "Upload artifacts to S3"
+        type: boolean
+        default: true
+  repository_dispatch:
+    types: [clover2-release]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.client_payload.tag || github.run_id }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        include: 
+        include:
           - runs-on: ubuntu-24.04
-            config: vm
+            config: clover2-vb
             board: uefi-x86
             arch: amd64
+            publish: false
+          # TODO: needs a config-clover2-vb-arm64.conf (BOARD=uefi-arm64)
+          # - runs-on: ubuntu-24.04-arm
+          #   config: clover2-vb-arm64
+          #   board: uefi-arm64
+          #   arch: arm64
+          #   publish: false
           - runs-on: ubuntu-24.04-arm
-            config: vm
-            board: uefi-arm64
+            config: clover2-rpi5b
+            board: rpi5b
             arch: arm64
-          - runs-on: ubuntu-24.04-arm
-            config: klever5
-            board: rpi5
-            arch: arm64
+            publish: true
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v7
 
+      - name: Resolve clover2 ref
+        id: ref
+        run: |
+          set -euo pipefail
+          ref="${{ github.event.client_payload.tag }}"
+          if [[ -z "${ref}" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ref="${{ inputs.clover2_ref }}"
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "Building clover2 @ ${ref:-<pinned default>}"
+
       - name: Copy userpatches for builder
         run: |
-          mv ansible/ userpatches/overlay/ansible/
           mkdir -p custom/userpatches
-          cp -r userpatches/* custom/userpatches/
+          cp -r config* extensions firstboot* systemd udev motd sudoers \
+                libcamera-debian overlay custom/userpatches/
 
-      - uses: ./.github/actions/vm-build
-        id: vm_build
+      - name: Restore clover2 build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
+          restore-keys: |
+            clover2-${{ matrix.arch }}-
+
+      - uses: ./.github/actions/armbian-build
+        id: armbian
         with:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
-          armbian_target: "clover2-vm-${{ matrix.arch }}"
+          armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
-          armbian_branch: f7625e6d3dc8103b08a8dbd11115e6e7b929d084
+          # upstream commit the extensions are validated against
+          armbian_branch: 95c829f
+          armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
+
+      - name: Save clover2 build cache
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
 
       - name: Upload img to S3
+        if: >-
+          ${{
+            (github.event_name == 'push' || github.event_name == 'release' ||
+             github.event_name == 'workflow_dispatch' ||
+             github.event_name == 'repository_dispatch')
+            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+            && github.event_name != 'pull_request'
+          }}
         run: |
-          aws s3 sync "${{ steps.vm_build.outputs.armbian_artifacts }}" \
-            "s3://clover-vm/${{ github.run_id }}/" \
+          aws s3 sync "${{ steps.armbian.outputs.armbian_artifacts }}" \
+            "s3://clover-vm/${{ matrix.config }}/${{ github.run_id }}/" \
             --acl public-read --no-progress
-          for artifact in "${{ steps.vm_build.outputs.armbian_artifacts }}"/*; do
+          for artifact in "${{ steps.armbian.outputs.armbian_artifacts }}"/*; do
             [[ -f "$artifact" ]] || continue
-            echo "Uploaded https://clover-vm.s3.cloud.ru/${{ github.run_id }}/$(basename "$artifact")"
+            echo "Uploaded https://clover-vm.s3.cloud.ru/${{ matrix.config }}/${{ github.run_id }}/$(basename "$artifact")"
           done
         env:
-          AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
-          AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
-          AWS_ENDPOINT_URL: https://s3.cloud.ru/
+          AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          AWS_ENDPOINT_URL: ${{ secrets.MINIO_ENDPOINT }}
           AWS_DEFAULT_REGION: ru-central-1
+
+      - name: Publish GitHub release
+        if: >-
+          ${{
+            github.event_name == 'repository_dispatch'
+            && matrix.publish
+            && steps.ref.outputs.ref != ''
+          }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: "${{ steps.ref.outputs.ref }}+img"
+          PRERELEASE: "${{ github.event.client_payload.prerelease }}"
+        run: |
+          set -euo pipefail
+          args=(--title "clover2 ${TAG} images")
+          [[ "${PRERELEASE}" == "true" ]] && args+=(--prerelease)
+          gh release create "${TAG}" "${args[@]}" \
+            --notes "Images built from clover2 ${{ steps.ref.outputs.ref }} (${{ matrix.config }})" \
+            || echo "release already exists, uploading into it"
+          gh release upload "${TAG}" \
+            "${{ steps.armbian.outputs.armbian_artifacts }}"/* --clobber

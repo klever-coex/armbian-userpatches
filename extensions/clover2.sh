@@ -1,5 +1,5 @@
 # Overrides:
-#   CLOVER2_WS_COMMIT: tag or commit
+#   CLOVER2_COMMIT: tag or commit
 #   CLOVER2_IMPORT_THIRD_PARTY (yes/no): vcs import third_party/clover2.repos
 #                                              (needs libcamera in the image:
 #                                              camera_ros links against it)
@@ -31,11 +31,11 @@ clover2_fetch_repo() {
 
 clover2_copy_workspace() {
 	CLOVER2_WS_REPO="https://github.com/klever-coex/clover2.git"
-	CLOVER2_WS_COMMIT="${CLOVER2_WS_COMMIT:-"v0.2.0-rc.1"}"
+	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"v0.2.0-rc.1"}"
 	CLOVER2_WS_DIR="${SDCARD}/opt/clover2/ws/src/clover2"
 
-	clover2_log "fetching clover2 workspace @ ${CLOVER2_WS_COMMIT}"
-	clover2_fetch_repo "${CLOVER2_WS_REPO}" "${CLOVER2_WS_COMMIT}" "${CLOVER2_WS_DIR}"
+	clover2_log "fetching clover2 workspace @ ${CLOVER2_COMMIT}"
+	clover2_fetch_repo "${CLOVER2_WS_REPO}" "${CLOVER2_COMMIT}" "${CLOVER2_WS_DIR}"
 
 	if [[ "${CLOVER2_IMPORT_THIRD_PARTY:-"yes"}" == "yes" ]]; then
 		if ! command -v vcs >/dev/null 2>&1; then
@@ -55,8 +55,6 @@ clover2_install_build_deps() {
 }
 
 clover2_build_workspace() {
-	local host_arch
-
 	clover2_log "building workspace natively in chroot (${ARCH})"
 
 	local ccache_args=""
@@ -102,7 +100,6 @@ clover2_install_build_outputs() {
 
 clover2_fixup_ownership() {
 	chroot_sdcard chown -R ${CLOVER2_USER:-pi}:${CLOVER2_USER:-pi} /opt/clover2 /home/${CLOVER2_USER:-pi}
-	rm -rf "${SDCARD}"/opt/clover2/ws/src/*/.git
 }
 
 clover2_main() {
