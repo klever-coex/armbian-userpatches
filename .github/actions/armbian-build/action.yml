@@ -110,7 +110,6 @@ runs:
         remove_dotnet: true
         remove_haskell: true
         remove_tool_cache: true
-        remove_swap: true
         remove_packages: >-
           ${{ runner.arch == 'ARM64'
             && 'azure-cli dotnet-sdk-8.0 temurin-* *llvm* mysql* firefox'
