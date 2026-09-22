@@ -1,4 +1,4 @@
-name: Build images
+name: Build images for Klever5 (rpi)
 
 on:
   workflow_dispatch:
@@ -27,16 +27,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - runs-on: ubuntu-24.04
-          #   config: clover2-vb
-          #   board: uefi-x86
-          #   arch: amd64
-          #   publish: false
-          # - runs-on: ubuntu-24.04-arm
-          #   config: clover2-vb-arm64
-          #   board: uefi-arm64
-          #   arch: arm64
-          #   publish: false
           - runs-on: ubuntu-24.04-arm
             config: clover2-rpi5b
             board: rpi5b
