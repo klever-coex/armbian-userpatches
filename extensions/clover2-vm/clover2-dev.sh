@@ -50,7 +50,7 @@ clover2_dev_prepare_workspace() {
 
     # FIXME: workaround for prebuilt PX4
     run_host_command_logged rm "${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/CMakeLists.txt"
-    run_host_command_logged cp ~/install/CMakeLists.txt "${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/CMakeLists.txt"
+    run_host_command_logged cp "${USERPATCHES_PATH}/px4/CMakeLists.txt" "${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/CMakeLists.txt"
 }
 
 clover2_dev_fixup_ownership() {
