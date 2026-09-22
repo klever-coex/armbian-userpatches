@@ -52,7 +52,7 @@ jobs:
       - name: Copy userpatches for builder
         run: |
           mkdir -p custom/userpatches
-          cp -r config* extensions firstboot* systemd udev motd sudoers \
+          cp -r _config*.conf config* extensions firstboot* systemd udev motd sudoers \
                 libcamera-debian overlay custom/userpatches/
 
       # - name: Restore clover2 build cache
@@ -70,7 +70,7 @@ jobs:
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
           # upstream commit the extensions are validated against
-          armbian_branch: 901cae784dc524b0e6b9eafc734bf968afe92f63 # upstream master the extensions are validated against
+          armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
           armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
 
       # - name: Save clover2 build cache
