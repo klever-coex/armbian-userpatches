@@ -3,7 +3,8 @@
 #   CLOVER2_IMPORT_THIRD_PARTY (yes/no): vcs import third_party/clover2.repos
 #                                              (needs libcamera in the image:
 #                                              camera_ros links against it)
-#   CLOVER2_CCACHE (yes/no): ccache-accelerated build
+
+enable_extension "clover2-ws"
 
 function extension_prepare_config__clover2() {
 	display_alert "clover2: the clover2 workspace will be built into the image" "${EXTENSION}" "info"
@@ -48,34 +49,6 @@ clover2_copy_workspace() {
 	fi
 }
 
-clover2_install_build_deps() {
-	clover2_log "resolving build dependencies with rosdep"
-	chroot_sdcard "source /opt/ros/jazzy/setup.bash && env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY rosdep install \
-		--from-paths /opt/clover2/ws/src --ignore-src --skip-keys=libcamera -y"
-}
-
-clover2_build_workspace() {
-	clover2_log "building workspace natively in chroot (${ARCH})"
-
-	local ccache_args=""
-	if [[ "${CLOVER2_CCACHE:-"yes"}" == "yes" ]]; then
-		chroot_sdcard_apt_get_install ccache
-		mkdir -p "${SRC}/cache/clover2/ccache-${ARCH}" "${SDCARD}/ccache"
-		mountpoint -q "${SDCARD}/ccache" || mount --bind "${SRC}/cache/clover2/ccache-${ARCH}" "${SDCARD}/ccache"
-		ccache_args="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-		clover2_log "ccache enabled (bind-mounted at /ccache)"
-	fi
-
-	chroot_sdcard "source /opt/ros/jazzy/setup.bash && cd /opt/clover2/ws && \
-		CCACHE_DIR=/ccache colcon build --symlink-install \
-		--cmake-args -DBUILD_TESTING=0 ${ccache_args}"
-
-	if [[ -n "${ccache_args}" ]]; then
-		chroot_sdcard ccache --show-stats
-		umount "${SDCARD}/ccache"
-	fi
-}
-
 clover2_install_build_outputs() {
 	local user="${CLOVER2_USER:-pi}"
 	clover2_log "placing build outputs and user environment"
@@ -104,8 +77,8 @@ clover2_fixup_ownership() {
 
 clover2_main() {
 	clover2_copy_workspace
-	clover2_install_build_deps
-	clover2_build_workspace
+	clover2_rosdep_install_chroot "/opt/clover2/ws/src" "--ignore-src --skip-keys=libcamera"
+	clover2_build_ws_chroot "/opt/clover2/ws"
 	clover2_install_build_outputs
 	clover2_fixup_ownership
 	clover2_log "done"
