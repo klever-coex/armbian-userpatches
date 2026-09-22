@@ -1,5 +1,7 @@
 # Overrides:
 #   CLOVER2_DEV_COMMIT: clover2-dev tag or commit (default: master)
+#   PREBUILT_PX4_VERSION: prebuilt PX4 version (default: v1.16.1)
+#   PREBUILT_PX4_URL: prebuilt PX4 download URL (default: https://downloads.klevercoex.ru/px4_prebuilt/)
 
 enable_extension "clover2-ws"
 
@@ -27,6 +29,28 @@ clover2_dev_fetch_repo() {
 	run_host_command_logged git -C "${dest}" checkout --force "${ref}"
 }
 
+clover2_dev_fetch_prebuilt_px4() {
+    local dest="$1"
+
+    local prebuilt_px4_version="${PREBUILT_PX4_VERSION:-v1.16.1}"
+    local archive_name="${prebuilt_px4_version}_${ARCH}.tar.gz"
+    local prebuilt_px4_url="${PREBUILT_PX4_URL:-https://downloads.klevercoex.ru/px4_prebuilt/}${archive_name}"
+
+    local cache_dir="${SRC}/cache/clover2/prebuilt_px4/"
+    run_host_command_logged mkdir -p "${cache_dir}"
+
+    if [[ ! -f "${cache_dir}/${archive_name}" ]]; then
+        clover2_dev_log "fetching prebuilt PX4 ${prebuilt_px4_version} from ${prebuilt_px4_url}"
+        run_host_command_logged wget -q "${prebuilt_px4_url}" -O "${cache_dir}/${archive_name}"
+        clover2_dev_log "prebuilt PX4 ${prebuilt_px4_version} fetched into ${cache_dir}"
+    else
+        clover2_dev_log "prebuilt PX4 ${prebuilt_px4_version} already exists in ${cache_dir}, skipping download"
+    fi
+
+    run_host_command_logged tar -xzf "${cache_dir}/${archive_name}" -C "${dest}"
+    clover2_dev_log "prebuilt PX4 ${prebuilt_px4_version} extracted into ${dest}"
+}
+
 clover2_dev_prepare_workspace() {
 	CLOVER2_DEV_REPO="https://github.com/klever-coex/clover2-dev.git"
 	CLOVER2_DEV_COMMIT="${CLOVER2_DEV_COMMIT:-"master"}"
@@ -42,15 +66,9 @@ clover2_dev_prepare_workspace() {
 	clover2_dev_log "importing simulation sources on the host"
 	run_host_command_logged vcs import --input "${CLOVER2_DEV_DIR}/repos/simulation.yaml" "${CLOVER2_DEV_DIR}/src"
 
-	local px4_prebuilt_dir="${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/prebuilt/px4_sitl_default"
-	clover2_dev_log "copying prebuilt PX4 files for ${ARCH}"
-	run_host_command_logged mkdir -p "${px4_prebuilt_dir}/bin" "${px4_prebuilt_dir}/etc"
-	run_host_command_logged cp -r "${USERPATCHES_PATH}/px4/bin_${ARCH}/." "${px4_prebuilt_dir}/bin/"
-	run_host_command_logged cp -r "${USERPATCHES_PATH}/px4/etc/." "${px4_prebuilt_dir}/etc/"
-
-    # FIXME: workaround for prebuilt PX4
-    run_host_command_logged rm "${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/CMakeLists.txt"
-    run_host_command_logged cp "${USERPATCHES_PATH}/px4/CMakeLists.txt" "${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/CMakeLists.txt"
+	local px4_prebuilt_dir="${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/prebuilt"
+	run_host_command_logged mkdir -p "${px4_prebuilt_dir}"
+    clover2_dev_fetch_prebuilt_px4 "${px4_prebuilt_dir}"
 }
 
 clover2_dev_fixup_ownership() {
