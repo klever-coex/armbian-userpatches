@@ -67,19 +67,20 @@ clover2_vscodium_install_extensions() {
 	local -a extensions=()
 	read -r -a extensions <<< "${CLOVER2_VSCODIUM_EXTENSIONS:-"meta.pyrefly@1.0.0"}"
 
-	local ext name version vsix
+	local ext name publisher extension version vsix dl_url
 	for ext in "${extensions[@]}"; do
 		name="${ext%@*}"
+		publisher="${name%%.*}"
+		extension="${name#*.}"
 		version="${ext##*@}"
 		vsix="${SRC}/cache/clover2/vscodium/${name}-${version}-${suffix}.vsix"
 
 		if [[ ! -f "${vsix}" ]]; then
 			clover2_vscodium_log "downloading extension ${name}@${version} (${suffix})"
 
-			local dl_url
-			dl_url="$(curl -fsSL --retry 3 "https://open-vsx.org/api/${name}/${suffix}/${version}" \
+			dl_url="$(curl -fsSL --retry 3 "https://open-vsx.org/api/${publisher}/${extension}/${suffix}/${version}" \
 				| python3 -c 'import json,sys; print(json.load(sys.stdin)["files"]["download"])' 2>/dev/null || true)"
-			[[ -n "${dl_url}" ]] || dl_url="https://open-vsx.org/api/${name}/${suffix}/${version}/file/${name}-${version}@${suffix}.vsix"
+			[[ -n "${dl_url}" ]] || dl_url="https://open-vsx.org/api/${publisher}/${extension}/${suffix}/${version}/file/${name}-${version}@${suffix}.vsix"
 
 			run_host_command_logged curl -fL --retry 5 --retry-all-errors --retry-delay 5 -o "${vsix}" "${dl_url}"
 		fi
