@@ -69,9 +69,10 @@ jobs:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
-          # upstream commit the extensions are validated against
+
+          # upstream commit the extensions and prebuilt kernel are validated against
           armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
-          armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
+          armbian_kernel_ref: tag:v6.18.52
 
       # - name: Save clover2 build cache
       #   uses: actions/cache/save@v5
