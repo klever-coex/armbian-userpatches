@@ -2,7 +2,7 @@ function extension_prepare_config__install_firefox() {
 	display_alert "Firefox from Mozilla's APT repository will be installed" "${EXTENSION}" "info"
 }
 
-function post_family_tweaks__20_install_firefox() {
+clover2_vm_firefox_install() {
 	local keyring_dir="${SDCARD}/etc/apt/keyrings"
 	local signing_key="${keyring_dir}/packages.mozilla.org.asc"
 	local gpg_home="${EXTENSION_MANAGER_TMP_DIR}/mozilla-gnupg"
@@ -39,5 +39,113 @@ function post_family_tweaks__20_install_firefox() {
 	EOF
 
 	do_with_retries 3 chroot_sdcard_apt_get_update
-	chroot_sdcard_apt_get_install firefox
+	chroot_sdcard_apt_get_install firefox xdg-utils
+}
+
+clover2_vm_firefox_set_default() {
+	local user="${CLOVER2_USER:-pi}"
+	local user_home="/home/${user}"
+	local user_xfce_dir="${SDCARD}${user_home}/.config/xfce4"
+	local mime_type
+
+	display_alert "Setting Firefox as the default browser" "${EXTENSION}" "info"
+	chroot_sdcard "update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 200"
+	chroot_sdcard "update-alternatives --set x-www-browser /usr/bin/firefox"
+
+	run_host_command_logged install -d -m 0755 "${SDCARD}/etc/xdg/xfce4"
+	cat > "${SDCARD}/etc/xdg/xfce4/helpers.rc" <<-'EOF'
+	[Helpers]
+	WebBrowser=firefox
+	EOF
+
+	cat > "${SDCARD}/etc/xdg/xfce-mimeapps.list" <<-'EOF'
+	[Default Applications]
+	application/xhtml+xml=firefox.desktop
+	text/html=firefox.desktop
+	x-scheme-handler/http=firefox.desktop
+	x-scheme-handler/https=firefox.desktop
+	EOF
+
+	run_host_command_logged install -d -m 0755 "${user_xfce_dir}"
+	cat > "${user_xfce_dir}/helpers.rc" <<-'EOF'
+	[Helpers]
+	WebBrowser=firefox
+	EOF
+	chroot_sdcard "chown -R ${user}:${user} ${user_home}/.config"
+
+	for mime_type in \
+		application/xhtml+xml \
+		text/html \
+		x-scheme-handler/http \
+		x-scheme-handler/https; do
+		chroot_sdcard "runuser -u ${user} -- env HOME=${user_home} XDG_CONFIG_HOME=${user_home}/.config xdg-mime default firefox.desktop ${mime_type}"
+	done
+}
+
+clover2_vm_firefox_configure_profile() {
+	local user="${CLOVER2_USER:-pi}"
+	local firefox_config_dir="${SDCARD}/home/${user}/.mozilla/firefox"
+	local firefox_profile_dir="${firefox_config_dir}/clover2.default-release"
+
+	display_alert "Configuring Firefox for ${user}" "${EXTENSION}" "info"
+	run_host_command_logged install -d -m 0755 "${firefox_profile_dir}"
+	cat > "${firefox_config_dir}/profiles.ini" <<-'EOF'
+	[General]
+	StartWithLastProfile=1
+	Version=2
+
+	[Profile0]
+	Name=default-release
+	IsRelative=1
+	Path=clover2.default-release
+	Default=1
+	EOF
+
+	cat > "${firefox_profile_dir}/user.js" <<-'EOF'
+	user_pref("browser.preferences.defaultPerformanceSettings.enabled", false);
+	user_pref("layers.acceleration.disabled", true);
+	EOF
+	chroot_sdcard "chown -R ${user}:${user} /home/${user}/.mozilla"
+}
+
+clover2_vm_firefox_install_policies() {
+	run_host_command_logged install -d -m 0755 "${SDCARD}/etc/firefox/policies"
+	cat > "${SDCARD}/etc/firefox/policies/policies.json" <<-'EOF'
+	{
+	  "policies": {
+	    "Homepage": {
+	      "URL": "https://klever-doc.tech/",
+	      "Locked": true,
+	      "StartPage": "homepage"
+	    },
+	    "OverrideFirstRunPage": "https://klever-doc.tech/",
+	    "HardwareAcceleration": false,
+	    "OverridePostUpdatePage": "",
+	    "DisableTelemetry": true,
+	    "DisableFirefoxStudies": true,
+	    "DisablePocket": true,
+	    "DontCheckDefaultBrowser": true,
+	    "NoDefaultBookmarks": true,
+	    "FirefoxHome": {
+	      "SponsoredTopSites": false
+	    },
+	    "ManagedBookmarks": [
+	      {
+	        "toplevel_name": "Klever"
+	      },
+	      {
+	        "url": "https://klever-doc.tech/",
+	        "name": "Klever DOC"
+	      }
+	    ]
+	  }
+	}
+	EOF
+}
+
+function post_family_tweaks__20_install_firefox() {
+	clover2_vm_firefox_install
+	clover2_vm_firefox_set_default
+	clover2_vm_firefox_configure_profile
+	clover2_vm_firefox_install_policies
 }
