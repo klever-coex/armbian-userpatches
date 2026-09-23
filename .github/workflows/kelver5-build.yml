@@ -69,7 +69,8 @@ jobs:
           armbian_runner_clean: "yes" # recommended for Github runners
           # upstream commit the extensions are validated against
           armbian_branch: 901cae784dc524b0e6b9eafc734bf968afe92f63 # upstream master the extensions are validated against
-          armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
+          armbian_extra_args: >-
+            CLOVER2_COMMIT=${{ steps.ref.outputs.ref }}
 
       - name: Save clover2 build cache
         uses: actions/cache/save@v5
