@@ -32,6 +32,11 @@ inputs:
     required: false
     default: "current"
 
+  armbian_kernel_ref:
+    description: "Choose kernel ref (start with commit:/tag:/branch:)"
+    required: false
+    default: ""
+
   armbian_release:
     description: "Choose userspace release"
     required: false
@@ -227,6 +232,11 @@ runs:
             EXTRA_ARGS+=("$arg")
           done
         fi
+
+        # optionally override the kernel git ref selected by the board config
+        [[ -n "${{ inputs.armbian_kernel_ref }}" ]] \
+          && EXTRA_ARGS+=("KERNELBRANCH=${{ inputs.armbian_kernel_ref }}" \
+                          "PINNED_KERNELBRANCH=${{ inputs.armbian_kernel_ref }}")
 
         # execute build command
         ./compile.sh "${{ inputs.armbian_target }}" "${EXTRA_ARGS[@]}" \
