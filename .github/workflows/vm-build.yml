@@ -85,11 +85,11 @@ jobs:
         run: |
           path="${GITHUB_SHA:0:7}/${{ matrix.config }}"
           aws s3 sync "${{ steps.armbian.outputs.armbian_artifacts }}" \
-            "s3://clover-vm/${path}/" \
+            "s3://clover2-vm/${path}/" \
             --acl public-read --no-progress
           for artifact in "${{ steps.armbian.outputs.armbian_artifacts }}"/*; do
             [[ -f "$artifact" ]] || continue
-            echo "Uploaded https://clover-vm.s3.cloud.ru/${path}/$(basename "$artifact")"
+            echo "Uploaded https://clover2-vm.s3.cloud.ru/${path}/$(basename "$artifact")"
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
