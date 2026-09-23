@@ -4,8 +4,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      clover2_ref:
-        description: "clover2 tag/commit/branch (empty = pinned default)"
+      clover2_dev_ref:
+        description: "clover2_dev tag/commit/branch (empty = pinned default)"
         required: false
         default: ""
       upload_s3:
@@ -14,7 +14,7 @@ on:
         default: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.client_payload.tag || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.clover2_dev_ref }}
   cancel-in-progress: true
 
 # permissions:
@@ -37,17 +37,6 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Resolve clover2 ref
-        id: ref
-        run: |
-          set -euo pipefail
-          ref="${{ github.event.client_payload.tag }}"
-          if [[ -z "${ref}" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ref="${{ inputs.clover2_ref }}"
-          fi
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
-          echo "Building clover2 @ ${ref:-<pinned default>}"
 
       - name: Copy userpatches for builder
         run: |
@@ -73,6 +62,9 @@ jobs:
           # upstream commit the extensions and prebuilt kernel are validated against
           armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
           armbian_kernel_ref: tag:v6.18.52
+
+          armbian_extra_args: >-
+            CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
 
       # - name: Save clover2 build cache
       #   uses: actions/cache/save@v5
