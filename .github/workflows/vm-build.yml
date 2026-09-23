@@ -74,21 +74,22 @@ jobs:
       #     key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
 
       - name: Upload img to S3
-        if: >-
-          ${{
-            (github.event_name == 'push' || github.event_name == 'release' ||
-             github.event_name == 'workflow_dispatch' ||
-             github.event_name == 'repository_dispatch')
-            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
-            && github.event_name != 'pull_request'
-          }}
+        # if: >-
+        #   ${{
+        #     (github.event_name == 'push' || github.event_name == 'release' ||
+        #      github.event_name == 'workflow_dispatch' ||
+        #      github.event_name == 'repository_dispatch')
+        #     && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+        #     && github.event_name != 'pull_request'
+        #   }}
         run: |
+          path="${GITHUB_SHA:0:7}/${{ matrix.config }}"
           aws s3 sync "${{ steps.armbian.outputs.armbian_artifacts }}" \
-            "s3://clover-vm/${{ matrix.config }}/${{ github.run_id }}/" \
+            "s3://clover-vm/${path}/" \
             --acl public-read --no-progress
           for artifact in "${{ steps.armbian.outputs.armbian_artifacts }}"/*; do
             [[ -f "$artifact" ]] || continue
-            echo "Uploaded https://clover-vm.s3.cloud.ru/${{ matrix.config }}/${{ github.run_id }}/$(basename "$artifact")"
+            echo "Uploaded https://clover-vm.s3.cloud.ru/${path}/$(basename "$artifact")"
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
