@@ -77,8 +77,8 @@ inputs:
     required: false
     default: "https://github.armbian.com/armbian-images.json"
 
-  armbian_clover2_ref:
-    description: "clover2 workspace ref (tag/commit/branch) passed to the build as CLOVER2_WS_COMMIT; empty = the pin inside the clover2 extension"
+  armbian_extra_args:
+    description: "Additional whitespace-separated arguments passed to the Armbian build command"
     required: false
     default: ""
 
@@ -194,6 +194,8 @@ runs:
         fi
 
     - shell: bash
+      env:
+        ARMBIAN_EXTRA_ARGS: ${{ inputs.armbian_extra_args }}
       run: |
 
         # userspace decode
@@ -217,10 +219,10 @@ runs:
         sudo ./compile.sh requirements
         sudo chown -R $USER:$USER .
 
-        # optional clover2 workspace pin
+        # optional additional build arguments
         EXTRA_ARGS=()
-        [[ -n "${{ inputs.armbian_clover2_ref }}" ]] \
-          && EXTRA_ARGS+=("CLOVER2_COMMIT=${{ inputs.CLOVER2_COMMIT }}")
+        [[ -n "${ARMBIAN_EXTRA_ARGS}" ]] \
+          && read -r -a EXTRA_ARGS <<< "${ARMBIAN_EXTRA_ARGS}"
 
         # execute build command
         ./compile.sh "${{ inputs.armbian_target }}" "${EXTRA_ARGS[@]}" \
