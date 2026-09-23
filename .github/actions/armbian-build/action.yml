@@ -52,16 +52,6 @@ inputs:
     required: false
     default: "minimal"
 
-  armbian_compress:
-    description: "Armbian compress method"
-    required: false
-    default: "sha,img,xz"
-
-  armbian_extensions:
-    description: "Armbian lists of extensions"
-    required: false
-    default: ""
-
   armbian_pgp_key:
     description: "Armbian PGP key"
     required: false
@@ -235,8 +225,6 @@ runs:
         # execute build command
         ./compile.sh "${{ inputs.armbian_target }}" "${EXTRA_ARGS[@]}" \
         REVISION="${{ env.ARMBIAN_VERSION }}" \
-        # ENABLE_EXTENSIONS="${{ inputs.armbian_extensions }}" \
-        # COMPRESS_OUTPUTIMAGE="${{ inputs.armbian_compress }}" \
         SHARE_LOG="yes" \
         EXPERT="yes"
 
