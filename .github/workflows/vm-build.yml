@@ -4,8 +4,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      clover2_ref:
-        description: "clover2 tag/commit/branch (empty = pinned default)"
+      clover2_dev_ref:
+        description: "clover2_dev tag/commit/branch (empty = pinned default)"
         required: false
         default: ""
       upload_s3:
@@ -14,7 +14,7 @@ on:
         default: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.client_payload.tag || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.clover2_dev_ref }}
   cancel-in-progress: true
 
 # permissions:
@@ -38,17 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Resolve clover2 ref
-        id: ref
-        run: |
-          set -euo pipefail
-          ref="${{ github.event.client_payload.tag }}"
-          if [[ -z "${ref}" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ref="${{ inputs.clover2_ref }}"
-          fi
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
-          echo "Building clover2 @ ${ref:-<pinned default>}"
-
       - name: Copy userpatches for builder
         run: |
           mkdir -p custom/userpatches
@@ -69,9 +58,13 @@ jobs:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
-          # upstream commit the extensions are validated against
+
+          # upstream commit the extensions and prebuilt kernel are validated against
           armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
-          armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
+          armbian_kernel_ref: tag:v6.18.52
+
+          armbian_extra_args: >-
+            CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
 
       # - name: Save clover2 build cache
       #   uses: actions/cache/save@v5
@@ -81,21 +74,22 @@ jobs:
       #     key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
 
       - name: Upload img to S3
-        if: >-
-          ${{
-            (github.event_name == 'push' || github.event_name == 'release' ||
-             github.event_name == 'workflow_dispatch' ||
-             github.event_name == 'repository_dispatch')
-            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
-            && github.event_name != 'pull_request'
-          }}
+        # if: >-
+        #   ${{
+        #     (github.event_name == 'push' || github.event_name == 'release' ||
+        #      github.event_name == 'workflow_dispatch' ||
+        #      github.event_name == 'repository_dispatch')
+        #     && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+        #     && github.event_name != 'pull_request'
+        #   }}
         run: |
+          path="${GITHUB_SHA:0:7}/${{ matrix.config }}"
           aws s3 sync "${{ steps.armbian.outputs.armbian_artifacts }}" \
-            "s3://clover-vm/${{ matrix.config }}/${{ github.run_id }}/" \
+            "s3://clover2-vm/${path}/" \
             --acl public-read --no-progress
           for artifact in "${{ steps.armbian.outputs.armbian_artifacts }}"/*; do
             [[ -f "$artifact" ]] || continue
-            echo "Uploaded https://clover-vm.s3.cloud.ru/${{ matrix.config }}/${{ github.run_id }}/$(basename "$artifact")"
+            echo "Uploaded https://clover2-vm.s3.cloud.ru/${path}/$(basename "$artifact")"
           done
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}

@@ -68,8 +68,11 @@ jobs:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
-          # upstream commit the extensions are validated against
-          armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
+
+          # upstream commit the extensions and prebuilt kernel are validated against
+          armbian_branch: v26.11.0-trunk.54
+          armbian_kernel_ref: commit:4bb240615790ea5bd939484f4595b6952ac94ef4  # v.1.18.52
+
           armbian_extra_args: >-
             CLOVER2_COMMIT=${{ steps.ref.outputs.ref }}
 

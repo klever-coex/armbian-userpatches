@@ -32,6 +32,11 @@ inputs:
     required: false
     default: "current"
 
+  armbian_kernel_ref:
+    description: "Choose kernel ref (start with commit:/tag:/branch:)"
+    required: false
+    default: ""
+
   armbian_release:
     description: "Choose userspace release"
     required: false
@@ -78,7 +83,7 @@ inputs:
     default: "https://github.armbian.com/armbian-images.json"
 
   armbian_extra_args:
-    description: "Additional whitespace-separated arguments passed to the Armbian build command"
+    description: "Additional whitespace-separated arguments passed to the Armbian build command; empty NAME= assignments are ignored"
     required: false
     default: ""
 
@@ -221,8 +226,19 @@ runs:
 
         # optional additional build arguments
         EXTRA_ARGS=()
-        [[ -n "${ARMBIAN_EXTRA_ARGS}" ]] \
-          && read -r -a EXTRA_ARGS <<< "${ARMBIAN_EXTRA_ARGS}"
+        if [[ -n "${{ inputs.armbian_extra_args }}" ]]; then
+          read -r -a REQUESTED_EXTRA_ARGS <<< "${{ inputs.armbian_extra_args }}"
+          for arg in "${REQUESTED_EXTRA_ARGS[@]}"; do
+            # Ignore empty variable assignments (for example, NAME=), but keep NAME=value.
+            [[ "$arg" =~ ^[[:alpha:]_][[:alnum:]_]*=$ ]] && continue
+            EXTRA_ARGS+=("$arg")
+          done
+        fi
+
+        # optionally override the kernel git ref selected by the board config
+        [[ -n "${{ inputs.armbian_kernel_ref }}" ]] \
+          && EXTRA_ARGS+=("KERNELBRANCH=${{ inputs.armbian_kernel_ref }}" \
+                          "PINNED_KERNELBRANCH=${{ inputs.armbian_kernel_ref }}")
 
         # execute build command
         ./compile.sh "${{ inputs.armbian_target }}" "${EXTRA_ARGS[@]}" \
