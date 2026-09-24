@@ -27,6 +27,18 @@ enable_extension "clover2"
 enable_extension "clover2-docker"
 enable_extension "clover2-vscodium"
 
+clover2_docker_images__klever5() {
+	clover2_docker_want_image "ghcr.io/klever-coex/clover2/clover2-frontend:${CLOVER2_DOCKER_TAG}"
+	clover2_docker_want_image "ghcr.io/klever-coex/clover2/clover2-docs:${CLOVER2_DOCKER_TAG}"
+}
+
+function post_family_config__klever5_pin_kernel() {
+	if [[ -n "${PINNED_KERNELBRANCH:-}" ]]; then
+		declare -g KERNELBRANCH="${PINNED_KERNELBRANCH}"
+		display_alert "klever5: kernel pinned to ${KERNELBRANCH}" "${EXTENSION}" "info"
+	fi
+}
+
 function extension_prepare_config__klever5() {
 	display_alert "klever5: drone image profile (systemd/udev/motd/firstboot/camera)" "${EXTENSION}" "info"
 }
@@ -34,8 +46,16 @@ function extension_prepare_config__klever5() {
 function post_family_tweaks__45_klever5() {
 	klever5_log "installing drone integration assets"
 	local src="${USERPATCHES_PATH}"
+
+	# for wifi hotspot mode and motd
+	chroot_sdcard_apt_get_install dnsmasq figlet
+
+	# no serial console on the UART that talks to the FCU
+	# sed -i -e 's/\( \|^\)console=serial0,115200\( \|$\)/ /g' -e 's/  */ /g' -e 's/^ //;s/ $//' "${SDCARD}/boot/firmware/cmdline.txt"
 	local ws_assets="${SDCARD}/opt/clover2/ws/src/clover2/tooling/builder/assets"
 	local user="${CLOVER2_USER:-pi}"
+
+	chroot_sdcard chown -R "${CLOVER2_USER}:${CLOVER2_USER}" "/home/${CLOVER2_USER}/.ros"
 
 	# systemd units + enable (offline enable only creates symlinks, works in chroot)
 	run_host_command_logged cp "${src}/systemd/"*.service "${SDCARD}/etc/systemd/system/"
@@ -44,7 +64,7 @@ function post_family_tweaks__45_klever5() {
 	# udev rules, helper scripts
 	run_host_command_logged cp "${src}/udev/"*.rules "${SDCARD}/etc/udev/rules.d/"
 	run_host_command_logged cp "${src}/systemd/bin/"* "${SDCARD}/usr/local/bin/"
-	run_host_command_logged chmod 755 "${SDCARD}/usr/local/bin/clover2_*.sh" "${SDCARD}/usr/local/bin/ros2_launch.sh"
+	run_host_command_logged chmod 755 "${SDCARD}/usr/local/bin/clover2_*.sh"
 
 	# firstboot script (wifi AP, docker load, self-removal)
 	run_host_command_logged cp "${src}/firstboot/clover2_firstboot.sh" "${SDCARD}/root/"
@@ -63,6 +83,23 @@ function post_family_tweaks__45_klever5() {
 	# log dir for the clover2 services
 	run_host_command_logged mkdir -p "${SDCARD}/var/log/clover2"
 	run_host_command_logged chmod 755 "${SDCARD}/var/log/clover2"
+
+	# clover2 env + settings helper into the user's zsh
+	local zshrc="${SDCARD}/home/${user}/.zshrc"
+	if [[ -f "${zshrc}" ]]; then
+		cat >> "${zshrc}" <<'EOF'
+
+# clover2
+export RCUTILS_COLORIZED_OUTPUT=1
+export CLOVER2_CONFIG_FILE=/opt/clover2/.config.yaml
+
+clover2-settings() {
+	ros2 run clover2_ui settings \
+		"$(ros2 pkg prefix clover2_bringup --share)/schemas/klever5.yaml" \
+		"$CLOVER2_CONFIG_FILE"
+}
+EOF
+	fi
 
 	klever5_log "done"
 }

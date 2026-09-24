@@ -1,5 +1,6 @@
 # Overrides:
 #   CLOVER2_CCACHE (yes/no): ccache-accelerated build
+#   CLOVER2_WS_SEQUENTIAL_BUILD (yes/no): run colcon with sequential arg
 
 clover2_ws_log() {
 	display_alert "clover2-ws: $*" "${EXTENSION}" "info"
@@ -30,8 +31,13 @@ clover2_build_ws_chroot() {
 		clover2_ws_log "ccache enabled (bind-mounted at /ccache)"
 	fi
 
+	local extra_args=""
+	if [[ "${CLOVER2_WS_SEQUENTIAL_BUILD:-"yes"}" == "yes" ]]; then
+		extra_args="--executor sequential"
+	fi
+
 	chroot_sdcard "source /opt/ros/jazzy/setup.bash && cd ${ws_dir} && \
-		CCACHE_DIR=/ccache colcon build --symlink-install --executor sequential \
+		CCACHE_DIR=/ccache colcon build --symlink-install ${extra_args} \
 		--cmake-args -DBUILD_TESTING=0 ${ccache_args}"
 
 	if [[ -n "${ccache_args}" ]]; then

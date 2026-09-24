@@ -16,7 +16,7 @@ clover2_ansible_ensure() {
 	[[ "${CLOVER2_ANSIBLE_READY:-"no"}" == "yes" ]] && return 0
 
 	CLOVER2_DEV_REPO="https://github.com/klever-coex/clover2-dev.git"
-	CLOVER2_DEV_COMMIT="${CLOVER2_DEV_COMMIT:-"a958ddafd1b1279012c9e0f3bacd6ec324250cc6"}"
+	CLOVER2_DEV_COMMIT="${CLOVER2_DEV_COMMIT:-"5c4dffb7120a3118630984ad880fb01099d1c284"}"
 	CLOVER2_ANSIBLE_VERSION="10.7.0"
 	CLOVER2_ANSIBLE_BIN_DIR="${CLOVER2_ANSIBLE_BIN_DIR:-"/root/.local/bin"}"
 	CLOVER2_DEV_DIR="${SRC}/cache/clover2/clover2-dev"
@@ -52,6 +52,10 @@ clover2_ansible_ensure() {
 	[[ -n "${tarball}" ]] || exit_with_error "clover2.dev collection tarball not produced"
 	run_host_command_logged "${CLOVER2_ANSIBLE_BIN_DIR}/ansible-galaxy" collection install \
 		"${tarball}" -p "${CLOVER2_COLLECTIONS_PATH}" --force
+
+	command -v clover2-dev >/dev/null 2>&1 || {
+		run_host_command_logged "${CLOVER2_ANSIBLE_BIN_DIR}/uv" tool install "${CLOVER2_DEV_DIR}/tooling"
+	}
 
 	CLOVER2_ANSIBLE_READY="yes"
 }

@@ -32,7 +32,7 @@ clover2_fetch_repo() {
 
 clover2_copy_workspace() {
 	CLOVER2_WS_REPO="https://github.com/klever-coex/clover2.git"
-	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"v0.2.0-rc.1"}"
+	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"master"}"
 	CLOVER2_WS_DIR="${SDCARD}/opt/clover2/ws/src/clover2"
 
 	clover2_log "fetching clover2 workspace @ ${CLOVER2_COMMIT}"
@@ -64,11 +64,29 @@ clover2_install_build_outputs() {
 			"${SDCARD}/home/${user}/.bashrc"
 	fi
 
+	clover2_ansible_ensure
 	local version hash
-	version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
-	hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
-	run_host_command_logged bash -c "echo CLOVER2_VERSION=${version} >> '${SDCARD}/usr/lib/os-release'"
-	run_host_command_logged bash -c "echo CLOVER2_GIT_HASH=${hash} >> '${SDCARD}/usr/lib/os-release'"
+	if version="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field git_hash)"; then
+		:
+	else
+		display_alert "clover2: clover2-dev tooling failed, falling back to git describe" "${EXTENSION}" "wrn"
+		version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
+		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+	fi
+
+	local zshrc="${SDCARD}/home/${user}/.zshrc"
+	if [[ -f "${zshrc}" ]]; then
+		cat >> "${zshrc}" <<'EOF'
+
+# clover2 workspace
+[ -f /opt/clover2/ws/install/setup.zsh ] && source /opt/clover2/ws/install/setup.zsh
+EOF
+	fi
+
+	cat > "${SDCARD}/etc/clover2-release" <<EOF
+CLOVER2_VERSION=${version}
+CLOVER2_GIT_HASH=${hash}
+EOF
 }
 
 clover2_fixup_ownership() {
