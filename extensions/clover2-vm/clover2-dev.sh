@@ -71,6 +71,15 @@ clover2_dev_prepare_workspace() {
     clover2_dev_fetch_prebuilt_px4 "${px4_prebuilt_dir}"
 }
 
+clover2_dev_install_bashrc() {
+	local user="${CLOVER2_USER:-pi}"
+	
+	cat >> "${SDCARD}/home/${user}/.bashrc" <<-'EOF'
+	source /opt/ros/jazzy/setup.bash
+	source ~/clover2-dev/install/setup.bash
+	EOF
+}
+
 clover2_dev_fixup_ownership() {
 	chroot_sdcard chown -R ${CLOVER2_USER:-pi}:${CLOVER2_USER:-pi} /home/pi/clover2-dev
 }
@@ -81,5 +90,6 @@ clover2_dev_main() {
 	clover2_rosdep_install_chroot "/home/pi/clover2-dev/src" "--ignore-src"
 	clover2_build_ws_chroot "/home/pi/clover2-dev"
 	clover2_dev_fixup_ownership
+    clover2_dev_install_bashrc
 	clover2_dev_log "done"
 }
