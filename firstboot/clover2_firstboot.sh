@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
-#
-# Clover2 first boot (runs once from clover2-firstboot.service).
-#
-# Scope: clover2-specific setup only — Wi-Fi AP + hostname and preloading
-# docker images. Everything else is handled by armbian itself:
-# rootfs growth (armbian-resize-filesystem.service), ssh host keys and
-# image uuid (armbian-firstrun.service), user/locale wizard
-# (armbian-firstlogin via /root/.not_logged_in_yet).
-#
-# The docker-compose.yaml is pre-generated at image build time by the
-# clover2-docker extension — do not regenerate it here.
-
 set -u
 
 # Wi-Fi access point + matching hostname; only when a wireless card exists
-# (development/VM images have none)
 if ip link show wlan0 &>/dev/null; then
 	hostname="clover2-$(openssl rand -hex 3)"
 	nmcli con add type wifi ifname wlan0 mode ap con-name clover2 ssid "$hostname" autoconnect yes &&
