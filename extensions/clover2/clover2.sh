@@ -3,7 +3,8 @@
 #   CLOVER2_IMPORT_THIRD_PARTY (yes/no): vcs import third_party/clover2.repos
 #                                              (needs libcamera in the image:
 #                                              camera_ros links against it)
-#   CLOVER2_CCACHE (yes/no): ccache-accelerated build
+
+enable_extension "clover2-ws"
 
 function extension_prepare_config__clover2() {
 	display_alert "clover2: the clover2 workspace will be built into the image" "${EXTENSION}" "info"
@@ -31,7 +32,7 @@ clover2_fetch_repo() {
 
 clover2_copy_workspace() {
 	CLOVER2_WS_REPO="https://github.com/klever-coex/clover2.git"
-	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"v0.2.0-rc.1"}"
+	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"master"}"
 	CLOVER2_WS_DIR="${SDCARD}/opt/clover2/ws/src/clover2"
 
 	clover2_log "fetching clover2 workspace @ ${CLOVER2_COMMIT}"
@@ -45,34 +46,6 @@ clover2_copy_workspace() {
 		clover2_log "importing third-party packages (vcs)"
 		run_host_command_logged vcs import --input "${CLOVER2_WS_DIR}/third_party/clover2.repos" \
 			"${SDCARD}/opt/clover2/ws/src"
-	fi
-}
-
-clover2_install_build_deps() {
-	clover2_log "resolving build dependencies with rosdep"
-	chroot_sdcard "source /opt/ros/jazzy/setup.bash && env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY rosdep install \
-		--from-paths /opt/clover2/ws/src --ignore-src --skip-keys=libcamera -y"
-}
-
-clover2_build_workspace() {
-	clover2_log "building workspace natively in chroot (${ARCH})"
-
-	local ccache_args=""
-	if [[ "${CLOVER2_CCACHE:-"yes"}" == "yes" ]]; then
-		chroot_sdcard_apt_get_install ccache
-		mkdir -p "${SRC}/cache/clover2/ccache-${ARCH}" "${SDCARD}/ccache"
-		mountpoint -q "${SDCARD}/ccache" || mount --bind "${SRC}/cache/clover2/ccache-${ARCH}" "${SDCARD}/ccache"
-		ccache_args="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-		clover2_log "ccache enabled (bind-mounted at /ccache)"
-	fi
-
-	chroot_sdcard "source /opt/ros/jazzy/setup.bash && cd /opt/clover2/ws && \
-		CCACHE_DIR=/ccache colcon build --symlink-install \
-		--cmake-args -DBUILD_TESTING=0 ${ccache_args}"
-
-	if [[ -n "${ccache_args}" ]]; then
-		chroot_sdcard ccache --show-stats
-		umount "${SDCARD}/ccache"
 	fi
 }
 
@@ -91,11 +64,29 @@ clover2_install_build_outputs() {
 			"${SDCARD}/home/${user}/.bashrc"
 	fi
 
+	clover2_ansible_ensure
 	local version hash
-	version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
-	hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
-	run_host_command_logged bash -c "echo CLOVER2_VERSION=${version} >> '${SDCARD}/usr/lib/os-release'"
-	run_host_command_logged bash -c "echo CLOVER2_GIT_HASH=${hash} >> '${SDCARD}/usr/lib/os-release'"
+	if version="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field git_hash)"; then
+		:
+	else
+		display_alert "clover2: clover2-dev tooling failed, falling back to git describe" "${EXTENSION}" "wrn"
+		version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
+		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+	fi
+
+	local zshrc="${SDCARD}/home/${user}/.zshrc"
+	if [[ -f "${zshrc}" ]]; then
+		cat >> "${zshrc}" <<'EOF'
+
+# clover2 workspace
+[ -f /opt/clover2/ws/install/setup.zsh ] && source /opt/clover2/ws/install/setup.zsh
+EOF
+	fi
+
+	cat > "${SDCARD}/etc/clover2-release" <<EOF
+CLOVER2_VERSION=${version}
+CLOVER2_GIT_HASH=${hash}
+EOF
 }
 
 clover2_fixup_ownership() {
@@ -104,8 +95,8 @@ clover2_fixup_ownership() {
 
 clover2_main() {
 	clover2_copy_workspace
-	clover2_install_build_deps
-	clover2_build_workspace
+	clover2_rosdep_install_chroot "/opt/clover2/ws/src" "--ignore-src --skip-keys=libcamera"
+	clover2_build_ws_chroot "/opt/clover2/ws"
 	clover2_install_build_outputs
 	clover2_fixup_ownership
 	clover2_log "done"

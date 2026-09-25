@@ -6,7 +6,7 @@ function extension_prepare_config__clover2_image_zip() {
 	display_alert "clover2-image-zip: final image will be packed into a .zip" "${EXTENSION}" "info"
 }
 
-function post_build_image__80_clover2_image_zip() {
+function post_build_image__990_clover2_image_zip() {
 	[[ "${CLOVER2_IMAGE_ZIP:-"yes"}" == "yes" ]] || return 0
 
 	local img="${FINAL_IMAGE_FILE}"

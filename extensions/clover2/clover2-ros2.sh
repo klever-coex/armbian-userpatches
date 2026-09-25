@@ -42,10 +42,21 @@ clover2_ros2_configure_dds() {
 		-e ros2_dds_ros_domain_id="${CLOVER2_DDS_DOMAIN_ID:-0}"
 }
 
+clover2_ros2_zsh_env() {
+	local zshrc="${SDCARD}/home/${CLOVER2_USER:-pi}/.zshrc"
+	[[ -f "${zshrc}" ]] || return 0
+	cat >> "${zshrc}" <<'EOF'
+
+source /opt/ros/jazzy/setup.zsh
+[ -f /etc/ros2/dds/env ] && . /etc/ros2/dds/env
+EOF
+}
+
 clover2_ros2_main() {
 	clover2_ros2_log "provisioning ROS 2 Jazzy via ansible"
 	clover2_ansible_playbook_chroot clover2.dev.install_deps --tags core
 	clover2_ros2_configure_dds
 	clover2_ros2_install_build_tools
+	clover2_ros2_zsh_env
 	clover2_ros2_log "done"
 }

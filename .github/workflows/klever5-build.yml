@@ -1,6 +1,7 @@
-name: Build images
+name: Build images for Klever5 (rpi)
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       clover2_ref:
@@ -27,16 +28,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - runs-on: ubuntu-24.04
-          #   config: clover2-vb
-          #   board: uefi-x86
-          #   arch: amd64
-          #   publish: false
-          # - runs-on: ubuntu-24.04-arm
-          #   config: clover2-vb-arm64
-          #   board: uefi-arm64
-          #   arch: arm64
-          #   publish: false
           - runs-on: ubuntu-24.04-arm
             config: clover2-rpi5b
             board: rpi5b
@@ -71,15 +62,32 @@ jobs:
           restore-keys: |
             clover2-${{ matrix.arch }}-
 
+      # prebuilt kernel/uboot/bsp packages + rootfs: kernel artifact hash is
+      # deterministic (KERNELBRANCH pinned via armbian_kernel_ref), so every
+      # run after the first downloads these instead of compiling
+      - name: Restore prebuilt artifacts cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            build/output/packages-hashed
+            build/output/debs
+            build/cache/rootfs
+          key: artifacts-${{ matrix.config }}-${{ github.sha }}
+          restore-keys: |
+            artifacts-${{ matrix.config }}-
+
       - uses: ./.github/actions/armbian-build
         id: armbian
         with:
           armbian_token: ${{ secrets.GITHUB_TOKEN }}
           armbian_target: "${{ matrix.config }}"
           armbian_runner_clean: "yes" # recommended for Github runners
-          # upstream commit the extensions are validated against
-          armbian_branch: 901cae784dc524b0e6b9eafc734bf968afe92f63 # upstream master the extensions are validated against
-          armbian_clover2_ref: "${{ steps.ref.outputs.ref }}"
+
+          armbian_branch: v26.11.0-trunk.54
+          armbian_kernel_ref: commit:2212a454d11b24d171a818fdd709adb4b339ca1f
+
+          armbian_extra_args: >-
+            CLOVER2_COMMIT=${{ steps.ref.outputs.ref }}
 
       - name: Save clover2 build cache
         uses: actions/cache/save@v5
@@ -87,6 +95,16 @@ jobs:
         with:
           path: build/cache/clover2
           key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
+
+      - name: Save prebuilt artifacts cache
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: |
+            build/output/packages-hashed
+            build/output/debs
+            build/cache/rootfs
+          key: artifacts-${{ matrix.config }}-${{ github.sha }}
 
       - name: Upload img to S3
         if: >-
