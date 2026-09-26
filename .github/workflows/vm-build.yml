@@ -7,7 +7,7 @@ on:
       clover2_dev_ref:
         description: "clover2_dev tag/commit/branch (empty = pinned default)"
         required: false
-        default: ""
+        default: "5c4dffb7120a3118630984ad880fb01099d1c284"
       upload_s3:
         description: "Upload artifacts to S3"
         type: boolean

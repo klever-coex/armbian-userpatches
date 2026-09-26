@@ -62,9 +62,6 @@ jobs:
           restore-keys: |
             clover2-${{ matrix.arch }}-
 
-      # prebuilt kernel/uboot/bsp packages + rootfs: kernel artifact hash is
-      # deterministic (KERNELBRANCH pinned via armbian_kernel_ref), so every
-      # run after the first downloads these instead of compiling
       - name: Restore prebuilt artifacts cache
         uses: actions/cache/restore@v5
         with:
