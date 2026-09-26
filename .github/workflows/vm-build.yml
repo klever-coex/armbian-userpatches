@@ -63,9 +63,6 @@ jobs:
           armbian_branch: v26.11.0-trunk.54 # upstream master the extensions are validated against
           armbian_kernel_ref: tag:v6.18.52
 
-          armbian_extra_args: >-
-            CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
-
       # - name: Save clover2 build cache
       #   uses: actions/cache/save@v5
       #   if: always()
