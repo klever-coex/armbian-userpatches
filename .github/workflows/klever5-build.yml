@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p custom/userpatches
           cp -r _config*.conf config* extensions firstboot* systemd udev motd \
-                sudoers libcamera-debian overlay custom/userpatches/
+                sudoers libcamera-debian libcamera-deb hailo overlay custom/userpatches/
 
       - name: Restore clover2 build cache
         uses: actions/cache/restore@v5
