@@ -37,6 +37,6 @@ Standards-Version: 4.6.2
 Package: libcamera
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: libcamera — camera stack for the Clover2 onboard computer
+Description: libcamera - camera stack for the Clover2 onboard computer
  Built from the raspberrypi/libcamera fork with the rpi/vc4 + rpi/pisp
  pipelines and gstreamer/pycamera enabled, packaged for Clover2 images.

@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# clover2 libcamera packaging — meson flags mirror clover2-pkgs config.yaml
+# clover2 libcamera packaging - meson flags mirror clover2-pkgs config.yaml
 
 export DEB_CXXFLAGS_MAINT_APPEND = -O2
 

@@ -21,7 +21,8 @@
 # this extension - see config-clover2-vb.conf.
 
 enable_extension "clover2-user-setup"
-enable_extension "clover2-libcamera"
+enable_extension "libcamera"
+enable_extension "hailo8"
 enable_extension "clover2-ros2"
 enable_extension "clover2"
 enable_extension "clover2-docker"
@@ -89,7 +90,7 @@ klever5_copy_files() {
 
 	# no serial console on the UART that talks to the FCU
 	# sed -i -e 's/\( \|^\)console=serial0,115200\( \|$\)/ /g' -e 's/  */ /g' -e 's/^ //;s/ $//' "${SDCARD}/boot/firmware/cmdline.txt"
-	local ws_assets="${SDCARD}/opt/clover2/ws/src/clover2/tooling/builder/assets"
+	local ws_assets="${SDCARD}/opt/clover2/ws/src/clover2/tooling/assets"
 	local user="${CLOVER2_USER:-pi}"
 
 	# systemd units + enable (offline enable only creates symlinks, works in chroot)
@@ -111,7 +112,7 @@ klever5_copy_files() {
 
 	# launcher config + camera calibrations (ws assets until they move to
 	# the clover2-dev ansible collection)
-	run_host_command_logged cp "${ws_assets}/launcher_config.yaml" "${SDCARD}/opt/clover2/.config.yaml"
+	run_host_command_logged cp "${ws_assets}/klever5/launcher_config.yaml" "${SDCARD}/opt/clover2/.config.yaml"
 	run_host_command_logged mkdir -p "${SDCARD}/home/${user}/.ros/camera_info"
 	run_host_command_logged cp "${ws_assets}/camera_info/"* "${SDCARD}/home/${user}/.ros/camera_info/"
 

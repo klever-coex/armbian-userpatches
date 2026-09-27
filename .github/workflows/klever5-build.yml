@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - runs-on: ubuntu-24.04-arm
-            config: clover2-rpi5b
+            config: klever5-rpi5b
             board: rpi5b
             arch: arm64
             publish: true
@@ -103,7 +103,7 @@ jobs:
             build/cache/rootfs
           key: artifacts-${{ matrix.config }}-${{ github.sha }}
 
-      - name: Upload img to S3
+      - name: Upload artifacts to MinIO
         if: >-
           ${{
             (github.event_name == 'push' || github.event_name == 'release' ||
@@ -112,37 +112,35 @@ jobs:
             && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
             && github.event_name != 'pull_request'
           }}
-        run: |
-          aws s3 sync "${{ steps.armbian.outputs.armbian_artifacts }}" \
-            "s3://clover-vm/${{ matrix.config }}/${{ github.run_id }}/" \
-            --acl public-read --no-progress
-          for artifact in "${{ steps.armbian.outputs.armbian_artifacts }}"/*; do
-            [[ -f "$artifact" ]] || continue
-            echo "Uploaded https://clover-vm.s3.cloud.ru/${{ matrix.config }}/${{ github.run_id }}/$(basename "$artifact")"
-          done
+        uses: ./.github/actions/upload-artifacts
+        with:
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}
+          family: klever5
+          config: ${{ matrix.config }}
+          version-repo: clover2
+          version-ref: ${{ steps.ref.outputs.ref }}
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
-          AWS_ENDPOINT_URL: ${{ secrets.MINIO_ENDPOINT }}
-          AWS_DEFAULT_REGION: ru-central-1
+          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
 
-      - name: Publish GitHub release
-        if: >-
-          ${{
-            github.event_name == 'repository_dispatch'
-            && matrix.publish
-            && steps.ref.outputs.ref != ''
-          }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: "${{ steps.ref.outputs.ref }}+img"
-          PRERELEASE: "${{ github.event.client_payload.prerelease }}"
-        run: |
-          set -euo pipefail
-          args=(--title "clover2 ${TAG} images")
-          [[ "${PRERELEASE}" == "true" ]] && args+=(--prerelease)
-          gh release create "${TAG}" "${args[@]}" \
-            --notes "Images built from clover2 ${{ steps.ref.outputs.ref }} (${{ matrix.config }})" \
-            || echo "release already exists, uploading into it"
-          gh release upload "${TAG}" \
-            "${{ steps.armbian.outputs.armbian_artifacts }}"/* --clobber
+      # - name: Publish GitHub release
+      #   if: >-
+      #     ${{
+      #       github.event_name == 'repository_dispatch'
+      #       && matrix.publish
+      #       && steps.ref.outputs.ref != ''
+      #     }}
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     TAG: "${{ steps.ref.outputs.ref }}+img"
+      #     PRERELEASE: "${{ github.event.client_payload.prerelease }}"
+      #   run: |
+      #     set -euo pipefail
+      #     args=(--title "clover2 ${TAG} images")
+      #     [[ "${PRERELEASE}" == "true" ]] && args+=(--prerelease)
+      #     gh release create "${TAG}" "${args[@]}" \
+      #       --notes "Images built from clover2 ${{ steps.ref.outputs.ref }} (${{ matrix.config }})" \
+      #       || echo "release already exists, uploading into it"
+      #     gh release upload "${TAG}" \
+      #       "${{ steps.armbian.outputs.armbian_artifacts }}"/* --clobber
