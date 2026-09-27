@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Overrides:
 #   CLOVER2_LIBCAMERA_REF: git tag or commit (default: v0.7.1+rpt20260429)
 
@@ -130,15 +131,25 @@ libcamera_install_deb() {
 	libcamera_log "libcamera installed into the rootfs"
 }
 
+libcamera_vendored_deb() {
+	local vendored
+	vendored="$(ls -1 "${USERPATCHES_PATH}/libcamera-deb"/libcamera*.deb 2>/dev/null | head -1)"
+	[[ -n "${vendored}" ]] && echo "${vendored}"
+}
+
 libcamera_main() {
 	local deb
-	libcamera_resolve_sources
-
-	if deb="$(libcamera_cached_deb)"; then
-		libcamera_log "using cached ${deb}"
+	if deb="$(libcamera_vendored_deb)"; then
+		libcamera_log "using vendored ${deb}"
 	else
-		libcamera_build
-		deb="$(ls -1 "${CLOVER2_LIBCAMERA_DEB_DIR}"/libcamera_*"_${ARCH}.deb" | head -1)"
+		libcamera_resolve_sources
+
+		if deb="$(libcamera_cached_deb)"; then
+			libcamera_log "using cached ${deb}"
+		else
+			libcamera_build
+			deb="$(ls -1 "${CLOVER2_LIBCAMERA_DEB_DIR}"/libcamera_*"_${ARCH}.deb" | head -1)"
+		fi
 	fi
 
 	libcamera_install_deb "${deb}"

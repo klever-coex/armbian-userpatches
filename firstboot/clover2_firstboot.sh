@@ -29,6 +29,8 @@ dtparam=fan_temp0=40000,fan_temp0_hyst=5000,fan_temp0_speed=125
 dtparam=fan_temp1=55000,fan_temp1_hyst=4000,fan_temp1_speed=200
 dtparam=fan_temp2=80000,fan_temp2_hyst=3000,fan_temp2_speed=255
 dtoverlay=uart0-pi5
+dtparam=i2c_arm=on
+dtparam=spi=on
 
 [cm5]
 camera_auto_detect=0

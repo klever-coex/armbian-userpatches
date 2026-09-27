@@ -74,15 +74,6 @@ clover2_install_build_outputs() {
 		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 	fi
 
-	local zshrc="${SDCARD}/home/${user}/.zshrc"
-	if [[ -f "${zshrc}" ]]; then
-		cat >> "${zshrc}" <<'EOF'
-
-# clover2 workspace
-[ -f /opt/clover2/ws/install/setup.zsh ] && source /opt/clover2/ws/install/setup.zsh
-EOF
-	fi
-
 	cat > "${SDCARD}/etc/clover2-release" <<EOF
 CLOVER2_VERSION=${version}
 CLOVER2_GIT_HASH=${hash}

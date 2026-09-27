@@ -77,6 +77,22 @@ alias ll='ls -laF'
 alias la='ls -A'
 alias l='ls -CF'
 export EDITOR=nano
+
+source /opt/ros/jazzy/setup.zsh
+[ -f /etc/ros2/dds/env ] && . /etc/ros2/dds/env
+
+# clover2 workspace
+[ -f /opt/clover2/ws/install/setup.zsh ] && source /opt/clover2/ws/install/setup.zsh
+
+# clover2
+export RCUTILS_COLORIZED_OUTPUT=1
+export CLOVER2_CONFIG_FILE=/opt/clover2/.config.yaml
+
+clover2-settings() {
+	ros2 run clover2_ui settings \
+		"$(ros2 pkg prefix clover2_bringup --share)/schemas/klever5.yaml" \
+		"$CLOVER2_CONFIG_FILE"
+}
 EOF
 
 	chroot_sdcard chown "${CLOVER2_USER}:${CLOVER2_USER}" "/home/${CLOVER2_USER}/.zshrc"
@@ -95,7 +111,7 @@ klever5_copy_files() {
 
 	# systemd units + enable (offline enable only creates symlinks, works in chroot)
 	run_host_command_logged cp "${src}/systemd/"*.service "${SDCARD}/etc/systemd/system/"
-	chroot_sdcard systemctl enable clover2.service clover2-web.service clover2-firstboot.service
+	chroot_sdcard systemctl enable clover2.service clover2-web.service clover2-firstboot.service clover2-backend.service
 
 	# udev rules, helper scripts
 	run_host_command_logged cp "${src}/udev/"*.rules "${SDCARD}/etc/udev/rules.d/"
@@ -121,23 +137,6 @@ klever5_copy_files() {
 	# log dir for the clover2 services
 	run_host_command_logged mkdir -p "${SDCARD}/var/log/clover2"
 	run_host_command_logged chmod 755 "${SDCARD}/var/log/clover2"
-
-	# clover2 env + settings helper into the user's zsh
-	local zshrc="${SDCARD}/home/${user}/.zshrc"
-	if [[ -f "${zshrc}" ]]; then
-		cat >> "${zshrc}" <<'EOF'
-
-# clover2
-export RCUTILS_COLORIZED_OUTPUT=1
-export CLOVER2_CONFIG_FILE=/opt/clover2/.config.yaml
-
-clover2-settings() {
-	ros2 run clover2_ui settings \
-		"$(ros2 pkg prefix clover2_bringup --share)/schemas/klever5.yaml" \
-		"$CLOVER2_CONFIG_FILE"
-}
-EOF
-	fi
 }
 
 klever5_log() {

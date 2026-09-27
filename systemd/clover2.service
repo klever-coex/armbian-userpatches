@@ -5,7 +5,6 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-EnvironmentFile=/etc/ros2/dds/env
 ExecStart=/usr/local/bin/clover2_run.sh
 Restart=on-failure
 RestartSec=5s
