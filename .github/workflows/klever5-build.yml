@@ -51,14 +51,14 @@ jobs:
       - name: Copy userpatches for builder
         run: |
           mkdir -p custom/userpatches
-          cp -r config* extensions firstboot* systemd udev motd sudoers \
-                libcamera-debian overlay custom/userpatches/
+          cp -r _config*.conf config* extensions firstboot* systemd udev motd \
+                sudoers libcamera-debian overlay custom/userpatches/
 
       - name: Restore clover2 build cache
         uses: actions/cache/restore@v5
         with:
           path: build/cache/clover2
-          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/drivers/libcamera.sh') }}
           restore-keys: |
             clover2-${{ matrix.arch }}-
 
@@ -91,7 +91,7 @@ jobs:
         if: always()
         with:
           path: build/cache/clover2
-          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/drivers/libcamera.sh') }}
 
       - name: Save prebuilt artifacts cache
         uses: actions/cache/save@v5
