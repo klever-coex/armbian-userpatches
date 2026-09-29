@@ -43,43 +43,12 @@ clover2_vm_firefox_install() {
 }
 
 clover2_vm_firefox_set_default() {
-	local user="${CLOVER2_USER:-pi}"
-	local user_home="/home/${user}"
-	local user_xfce_dir="${SDCARD}${user_home}/.config/xfce4"
-	local mime_type
+	local helpers_file="${SDCARD}/etc/xdg/xfce4/helpers.rc"
 
 	display_alert "Setting Firefox as the default browser" "${EXTENSION}" "info"
-	chroot_sdcard "update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 200"
-	chroot_sdcard "update-alternatives --set x-www-browser /usr/bin/firefox"
 
-	run_host_command_logged install -d -m 0755 "${SDCARD}/etc/xdg/xfce4"
-	cat > "${SDCARD}/etc/xdg/xfce4/helpers.rc" <<-'EOF'
-	[Helpers]
-	WebBrowser=firefox
-	EOF
-
-	cat > "${SDCARD}/etc/xdg/xfce-mimeapps.list" <<-'EOF'
-	[Default Applications]
-	application/xhtml+xml=firefox.desktop
-	text/html=firefox.desktop
-	x-scheme-handler/http=firefox.desktop
-	x-scheme-handler/https=firefox.desktop
-	EOF
-
-	run_host_command_logged install -d -m 0755 "${user_xfce_dir}"
-	cat > "${user_xfce_dir}/helpers.rc" <<-'EOF'
-	[Helpers]
-	WebBrowser=firefox
-	EOF
-	chroot_sdcard "chown -R ${user}:${user} ${user_home}/.config"
-
-	for mime_type in \
-		application/xhtml+xml \
-		text/html \
-		x-scheme-handler/http \
-		x-scheme-handler/https; do
-		chroot_sdcard "runuser -u ${user} -- env HOME=${user_home} XDG_CONFIG_HOME=${user_home}/.config xdg-mime default firefox.desktop ${mime_type}"
-	done
+	sed -i '/^WebBrowser=/d' "${helpers_file}"
+	echo 'WebBrowser=firefox' >> "${helpers_file}"
 }
 
 clover2_vm_firefox_configure_profile() {

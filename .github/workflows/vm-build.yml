@@ -71,11 +71,11 @@ jobs:
       #     key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2-libcamera.sh', 'extensions/clover2-vscodium.sh') }}
 
       - name: Upload artifacts to MinIO
-        if: >-
-          ${{
-            github.event_name != 'pull_request'
-            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
-          }}
+        # if: >-
+        #   ${{
+        #     github.event_name != 'pull_request'
+        #     && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+        #   }}
         uses: ./.github/actions/upload-artifacts
         with:
           artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}
