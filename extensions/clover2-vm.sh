@@ -5,6 +5,10 @@ enable_extension "clover2-vm-deps"
 enable_extension "clover2-dev"
 enable_extension "clover2-vm-qgroundcontrol"
 
+function extension_prepare_config__clover2_vm() {
+	declare -g CLOVER2_USER_SHELL="${CLOVER2_USER_SHELL:-/bin/bash}"
+}
+
 function post_family_tweaks__45_clover2_vm() {
 	clover2_vm_setup_firstboot_script
 }

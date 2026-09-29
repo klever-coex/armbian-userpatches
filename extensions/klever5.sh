@@ -46,6 +46,7 @@ function post_family_tweaks__45_klever5() {
 
 
 function extension_prepare_config__klever5() {
+	declare -g CLOVER2_USER_SHELL="${CLOVER2_USER_SHELL:-/bin/zsh}"
 	display_alert "klever5: drone image profile (systemd/udev/motd/firstboot/camera)" "${EXTENSION}" "info"
 }
 
