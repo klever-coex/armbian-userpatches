@@ -77,6 +77,7 @@ clover2_dev_install_bashrc() {
 	cat >> "${SDCARD}/home/${user}/.bashrc" <<-'EOF'
 	source /opt/ros/jazzy/setup.bash
 	source ~/clover2-dev/install/setup.bash
+	export CLOVER2_GZ_SIM_RENDER_ENGINE=ogre
 	EOF
 }
 
