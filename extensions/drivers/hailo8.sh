@@ -50,6 +50,7 @@ function custom_kernel_config__hailo8_modules() {
 		  hailo_pci as a module; the option only gates whether kbuild
 		  descends into the driver directory.
 	EOF
+
 	cat > "${hailo_dir}/Makefile" <<- 'EOF'
 		obj-$(CONFIG_HAILO_PCI) += linux/pcie/
 	EOF
@@ -62,6 +63,26 @@ function custom_kernel_config__hailo8_modules() {
 	fi
 
 	kernel_config_set_y CONFIG_HAILO_PCI
+}
+
+HAILO8_FW_URL="https://hailo-hailort.s3.eu-west-2.amazonaws.com/Hailo8/${HAILO8_VERSION}/FW/hailo8_fw.${HAILO8_VERSION}.bin"
+HAILO8_FW_CACHE="${SRC}/cache/sources/hailort-drivers/hailo8_fw.${HAILO8_VERSION}.bin"
+
+function post_family_tweaks__hailo8_firmware() {
+	[[ "${ARCH}" != "arm64" ]] && return 0
+
+	if [[ ! -f "${HAILO8_FW_CACHE}" ]]; then
+		clover2_hailo_log "downloading firmware from Hailo S3"
+		run_host_command_logged curl -fL --retry 3 -o "${HAILO8_FW_CACHE}" "${HAILO8_FW_URL}"
+	fi
+
+	display_alert "hailo8" "installing firmware hailo8_fw.bin" "info"
+	run_host_command_logged install -D -m 0644 \
+		"${HAILO8_FW_CACHE}" "${SDCARD}/lib/firmware/hailo/hailo8_fw.bin"
+}
+
+clover2_hailo_log() {
+	display_alert "hailo8: $*" "${EXTENSION:-hailo8}" "info"
 }
 
 function post_family_tweaks__hailo8_userspace() {
