@@ -47,8 +47,10 @@ runs:
   using: composite
 
   steps:
-    - name: Install clover2-cli CLI
+    - name: Install clover2 CLI
       uses: klever-coex/clover2-cli@v0.0.5
+      with:
+        detect-version: ""  # FIXME: remove after clover2-cli update
 
     - name: Checkout version source repository
       uses: actions/checkout@v7
@@ -133,5 +135,7 @@ runs:
             "${extra[@]}"
 
           echo "Uploaded ${bucket}/${key}"
-          [[ -n "$public_base" ]] && echo "  ${public_base%/}/${bucket}/${key}"
+          if [[ -n "$public_base" ]]; then
+            echo "  ${public_base%/}/${bucket}/${key}"
+          fi
         done
