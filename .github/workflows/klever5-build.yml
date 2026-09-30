@@ -120,9 +120,9 @@ jobs:
           version-repo: clover2
           version-ref: ${{ steps.ref.outputs.ref }}
         env:
-          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
-          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
 
       # - name: Publish GitHub release
       #   if: >-
