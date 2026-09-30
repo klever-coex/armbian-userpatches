@@ -1,7 +1,6 @@
 name: Build images for Clover2 (VM)
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       clover2_dev_ref:

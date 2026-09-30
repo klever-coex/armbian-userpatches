@@ -1,7 +1,6 @@
 name: Build images for Klever5 (rpi)
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       clover2_ref:
