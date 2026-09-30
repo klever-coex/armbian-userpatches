@@ -4,6 +4,8 @@
 
 source /opt/ros/jazzy/setup.bash
 
+export CLOVER2_CONFIG_FILE=/opt/clover2/.config.yaml
+
 if [ -f /opt/clover2/ws/install/setup.bash ]; then
     source /opt/clover2/ws/install/setup.bash
 

@@ -19,13 +19,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.client_payload.tag || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 env:
-  # keep in sync with _config-clover2-common.conf; used when no ref is
-  # given (push/PR builds), for BOTH the build pin and the artifact version
-  CLOVER2_PIN: "07b2017d89127ff632b6fa5641bb741d53e1042e"
+  CLOVER2_PIN: "7ecac13f009048510a8323ce4e7d5f839477ed8a"
 
 jobs:
   build:
@@ -111,7 +106,7 @@ jobs:
             build/cache/rootfs
           key: artifacts-${{ matrix.config }}-${{ github.sha }}
 
-      - name: Upload artifacts to MinIO
+      - name: Upload artifacts
         if: >-
           ${{
             (github.event_name == 'push' ||
@@ -131,24 +126,3 @@ jobs:
           CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
           CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
           CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
-
-      # - name: Publish GitHub release
-      #   if: >-
-      #     ${{
-      #       github.event_name == 'repository_dispatch'
-      #       && matrix.publish
-      #       && steps.ref.outputs.ref != ''
-      #     }}
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     TAG: "${{ steps.ref.outputs.ref }}+img"
-      #     PRERELEASE: "${{ github.event.client_payload.prerelease }}"
-      #   run: |
-      #     set -euo pipefail
-      #     args=(--title "clover2 ${TAG} images")
-      #     [[ "${PRERELEASE}" == "true" ]] && args+=(--prerelease)
-      #     gh release create "${TAG}" "${args[@]}" \
-      #       --notes "Images built from clover2 ${{ steps.ref.outputs.ref }} (${{ matrix.config }})" \
-      #       || echo "release already exists, uploading into it"
-      #     gh release upload "${TAG}" \
-      #       "${{ steps.armbian.outputs.armbian_artifacts }}"/* --clobber

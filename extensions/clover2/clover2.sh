@@ -31,10 +31,9 @@ clover2_fetch_repo() {
 }
 
 clover2_copy_workspace() {
+	[[ -n "${CLOVER2_COMMIT}" ]] ||
+		exit_with_error "CLOVER2_COMMIT is not set (expected in _config-clover2-common.conf)"
 	CLOVER2_WS_REPO="https://github.com/klever-coex/clover2.git"
-	# 07b2017 = master @ "feat(builder): migrate to new builder": first commit
-	# with tooling/tooling.json (required by clover2-cli version compose)
-	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"07b2017d89127ff632b6fa5641bb741d53e1042e"}"
 	CLOVER2_WS_DIR="${SDCARD}/opt/clover2/ws/src/clover2"
 
 	clover2_log "fetching clover2 workspace @ ${CLOVER2_COMMIT}"
@@ -61,20 +60,9 @@ clover2_install_build_outputs() {
 	run_host_command_logged ln -sfn /opt/clover2/ws/install/clover2/share/clover2/examples \
 		"${SDCARD}/home/${user}/examples"
 
-	clover2_ansible_ensure
-
-	local version hash
-	if version="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field git_hash)"; then
-		:
-	else
-		display_alert "clover2: clover2-dev tooling failed, falling back to git describe" "${EXTENSION}" "wrn"
-		version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
-		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-	fi
-
 	cat > "${SDCARD}/etc/clover2-release" <<EOF
-CLOVER2_VERSION=${version}
-CLOVER2_GIT_HASH=${hash}
+CLOVER2_VERSION=${CLOVER2_VERSION}
+CLOVER2_GIT_HASH=${CLOVER2_GIT_HASH}
 EOF
 }
 
@@ -82,11 +70,35 @@ clover2_fixup_ownership() {
 	chroot_sdcard chown -R ${CLOVER2_USER:-pi}:${CLOVER2_USER:-pi} /opt/clover2 /home/${CLOVER2_USER:-pi}
 }
 
-clover2_main() {
-	clover2_copy_workspace
+clover2_install_ros_deps() {
 	clover2_rosdep_install_chroot "/opt/clover2/ws/src" "--ignore-src --skip-keys=libcamera"
+}
+
+clover2_build() {
 	clover2_build_ws_chroot "/opt/clover2/ws"
-	clover2_install_build_outputs
-	clover2_fixup_ownership
+}
+
+clover2_resolve_version() {
+	clover2_ansible_ensure
+
+	if version="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field git_hash)"; then
+		:
+	else
+		display_alert "clover2: clover2-cli version compose failed, falling back to git describe" "${EXTENSION}" "wrn"
+		version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
+		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+	fi
+	CLOVER2_VERSION="${version}"
+	CLOVER2_GIT_HASH="${hash}"
+	clover2_log "clover2 version: ${CLOVER2_VERSION} (${CLOVER2_GIT_HASH})"
+}
+
+clover2_main() {
+	LOG_SECTION="clover2_copy_workspace" do_with_logging clover2_copy_workspace
+	LOG_SECTION="clover2_resolve_version" do_with_logging clover2_resolve_version
+	LOG_SECTION="clover2_install_ros_deps" do_with_logging clover2_install_ros_deps
+	LOG_SECTION="clover2_build" do_with_logging clover2_build
+	LOG_SECTION="clover2_install_build_outputs" do_with_logging clover2_install_build_outputs
+	LOG_SECTION="clover2_fixup_ownership" do_with_logging clover2_fixup_ownership
 	clover2_log "done"
 }

@@ -53,6 +53,7 @@ clover2_docker_download_images() {
 	for fn in $(compgen -A function | grep '^clover2_docker_images__' | sort); do
 		"${fn}"
 	done
+
 	for ref in "${!CLOVER2_DOCKER_IMAGES_WANTED[@]}"; do
 		clover2_docker_log "pulling ${ref} (${ARCH}, requested by ${CLOVER2_DOCKER_IMAGES_WANTED[${ref}]})"
 		clover2_docker_pull "${ref}"
