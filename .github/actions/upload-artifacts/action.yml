@@ -1,5 +1,5 @@
 name: upload-artifacts
-description: Upload build artifacts to the clover2 MinIO bucket via the clover2-dev CLI
+description: Upload build artifacts to the clover2 MinIO bucket via the clover2 CLI
 
 inputs:
   artifacts:
@@ -47,8 +47,8 @@ runs:
   using: composite
 
   steps:
-    - name: Install clover2-dev CLI
-      uses: klever-coex/clover2-dev@0a834209242838326e2f386ae4a6c47103a675da
+    - name: Install clover2-cli CLI
+      uses: klever-coex/clover2-cli@v0.0.5
 
     - name: Checkout version source repository
       uses: actions/checkout@v7
@@ -72,7 +72,7 @@ runs:
           args+=(--ref "$ref")
         fi
 
-        meta="$(clover2-dev version compose "${args[@]}" --json)"
+        meta="$(clover2 version compose "${args[@]}" --json)"
         echo "$meta"
 
         version="$(jq -r .version <<<"$meta")"
@@ -122,8 +122,9 @@ runs:
           [[ -n "$ext" ]] || ext="${base##*.}"
 
           key="${channel}/${family}/${config}-${version}.${ext}"
-          clover2-dev minio upload "$f" \
+          clover2 artifact push "$f" \
             --bucket "$bucket" \
+            --endpoint "$CLOVER2_S3_ENDPOINT" \
             --key "$key" \
             --tag "sha=${GITHUB_SHA:0:7}" \
             --tag "run_id=${GITHUB_RUN_ID}" \

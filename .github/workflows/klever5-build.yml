@@ -22,6 +22,11 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  # keep in sync with _config-clover2-common.conf; used when no ref is
+  # given (push/PR builds), for BOTH the build pin and the artifact version
+  CLOVER2_PIN: "07b2017d89127ff632b6fa5641bb741d53e1042e"
+
 jobs:
   build:
     strategy:
@@ -44,6 +49,9 @@ jobs:
           ref="${{ github.event.client_payload.tag }}"
           if [[ -z "${ref}" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             ref="${{ inputs.clover2_ref }}"
+          fi
+          if [[ -z "${ref}" ]]; then
+            ref="${{ env.CLOVER2_PIN }}" # pinned default = same ref the build uses
           fi
           echo "ref=${ref}" >> "$GITHUB_OUTPUT"
           echo "Building clover2 @ ${ref:-<pinned default>}"
@@ -106,7 +114,7 @@ jobs:
       - name: Upload artifacts to MinIO
         if: >-
           ${{
-            (github.event_name == 'push' || github.event_name == 'release' ||
+            (github.event_name == 'push' ||
              github.event_name == 'workflow_dispatch' ||
              github.event_name == 'repository_dispatch')
             && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
@@ -120,9 +128,9 @@ jobs:
           version-repo: clover2
           version-ref: ${{ steps.ref.outputs.ref }}
         env:
-          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
-          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
 
       # - name: Publish GitHub release
       #   if: >-

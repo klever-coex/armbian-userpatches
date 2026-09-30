@@ -18,7 +18,7 @@
 #   clover2-vscodium     (60) web IDE
 #
 # The simulation profile (VirtualBox/x86) uses the shared layers without
-# this extension - see config-clover2-vb.conf.
+# this extension - see config-clover2-vm-amd64.conf.
 
 enable_extension "clover2-user-setup"
 enable_extension "libcamera"
@@ -104,6 +104,9 @@ klever5_copy_files() {
 
 	# for wifi hotspot mode and motd
 	chroot_sdcard_apt_get_install dnsmasq figlet
+
+	# install cli command
+	chroot_sdcard "curl -fsSL https://github.com/klever-coex/clover2-cli/releases/latest/download/install.sh | sh"
 
 	# no serial console on the UART that talks to the FCU
 	# sed -i -e 's/\( \|^\)console=serial0,115200\( \|$\)/ /g' -e 's/  */ /g' -e 's/^ //;s/ $//' "${SDCARD}/boot/firmware/cmdline.txt"

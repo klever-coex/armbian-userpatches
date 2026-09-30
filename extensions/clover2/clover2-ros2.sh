@@ -45,7 +45,7 @@ clover2_ros2_configure_dds() {
 
 clover2_ros2_main() {
 	clover2_ros2_log "provisioning ROS 2 Jazzy via ansible"
-	clover2_ansible_playbook_chroot clover2.dev.install_deps --tags core
+	clover2_ansible_playbook_chroot clover2.dev.install_deps --tags core -e ros_packages_profile=jazzy-2026-06-18
 	clover2_ros2_configure_dds
 	clover2_ros2_install_build_tools
 	clover2_ros2_log "done"

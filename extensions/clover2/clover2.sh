@@ -32,7 +32,9 @@ clover2_fetch_repo() {
 
 clover2_copy_workspace() {
 	CLOVER2_WS_REPO="https://github.com/klever-coex/clover2.git"
-	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"master"}"
+	# 07b2017 = master @ "feat(builder): migrate to new builder": first commit
+	# with tooling/tooling.json (required by clover2-cli version compose)
+	CLOVER2_COMMIT="${CLOVER2_COMMIT:-"07b2017d89127ff632b6fa5641bb741d53e1042e"}"
 	CLOVER2_WS_DIR="${SDCARD}/opt/clover2/ws/src/clover2"
 
 	clover2_log "fetching clover2 workspace @ ${CLOVER2_COMMIT}"
@@ -59,14 +61,10 @@ clover2_install_build_outputs() {
 	run_host_command_logged ln -sfn /opt/clover2/ws/install/clover2/share/clover2/examples \
 		"${SDCARD}/home/${user}/examples"
 
-	if [[ -f "${USERPATCHES_PATH}/overlay/home/${user}/.bashrc" ]]; then
-		run_host_command_logged cp "${USERPATCHES_PATH}/overlay/home/${user}/.bashrc" \
-			"${SDCARD}/home/${user}/.bashrc"
-	fi
-
 	clover2_ansible_ensure
+
 	local version hash
-	if version="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2-dev version compose --field git_hash)"; then
+	if version="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field git_hash)"; then
 		:
 	else
 		display_alert "clover2: clover2-dev tooling failed, falling back to git describe" "${EXTENSION}" "wrn"

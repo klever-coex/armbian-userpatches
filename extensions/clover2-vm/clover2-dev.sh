@@ -52,8 +52,9 @@ clover2_dev_fetch_prebuilt_px4() {
 }
 
 clover2_dev_prepare_workspace() {
+	[[ -n "${CLOVER2_DEV_COMMIT}" ]] ||
+		exit_with_error "CLOVER2_DEV_COMMIT is not set (expected in _config-clover2-common.conf)"
 	CLOVER2_DEV_REPO="https://github.com/klever-coex/clover2-dev.git"
-	CLOVER2_DEV_COMMIT="${CLOVER2_DEV_COMMIT:-"master"}"
 	CLOVER2_DEV_DIR="${SDCARD}/home/pi/clover2-dev"
 
 	clover2_dev_log "fetching clover2-dev workspace @ ${CLOVER2_DEV_COMMIT}"
