@@ -1,0 +1,141 @@
+name: upload-artifacts
+description: Upload build artifacts to the clover2 MinIO bucket via the clover2 CLI
+
+inputs:
+  artifacts:
+    description: Directory with build artifacts (armbian-build output)
+    required: true
+
+  family:
+    description: Build family - first path segment (vm, klever5, ...)
+    required: true
+
+  config:
+    description: Build config name (matrix.config), used in the object name
+    required: true
+
+  version-repo:
+    description: Repository whose version identifies the build (clover2 or clover2-dev)
+    required: true
+
+  version-ref:
+    description: Ref of version-repo being built (tag/branch/SHA; empty = default branch HEAD)
+    required: false
+    default: ""
+
+  bucket:
+    description: MinIO bucket
+    required: false
+    default: "clover2"
+
+  insecure:
+    description: Disable TLS for the MinIO endpoint ("true"/"false")
+    required: false
+    default: "false"
+
+  public-base-url:
+    description: Public URL base to print download links from (empty = skip)
+    required: false
+    default: ""
+
+  github-token:
+    description: Token for the version-repo checkout
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Install clover2 CLI
+      uses: klever-coex/clover2-cli@v0.0.5
+      with:
+        detect-version: ""  # FIXME: remove after clover2-cli update
+
+    - name: Checkout version source repository
+      uses: actions/checkout@v7
+      with:
+        repository: klever-coex/${{ inputs.version-repo }}
+        ref: ${{ inputs.version-ref }}
+        fetch-depth: 0
+        path: version-src
+        token: ${{ inputs.github-token }}
+
+    - name: Compose build version and channel
+      id: version
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd version-src
+
+        ref="${{ inputs.version-ref }}"
+        args=()
+        if [[ "$ref" == refs/tags/* || "$ref" == v* ]]; then
+          args+=(--ref "$ref")
+        fi
+
+        meta="$(clover2 version compose "${args[@]}" --json)"
+        echo "$meta"
+
+        version="$(jq -r .version <<<"$meta")"
+        mode="$(jq -r .build_mode <<<"$meta")"
+        channel="dev"
+        [[ "$mode" == "release" ]] && channel="release"
+
+        {
+          echo "version=${version}"
+          echo "channel=${channel}"
+        } >> "$GITHUB_OUTPUT"
+        echo "Object prefix: ${{ inputs.bucket }}/${channel}/${{ inputs.family }}/${{ inputs.config }}-${version}."
+
+    - name: Upload artifacts
+      shell: bash
+      run: |
+        set -euo pipefail
+        artifacts="${{ inputs.artifacts }}"
+        bucket="${{ inputs.bucket }}"
+        family="${{ inputs.family }}"
+        config="${{ inputs.config }}"
+        version="${{ steps.version.outputs.version }}"
+        channel="${{ steps.version.outputs.channel }}"
+        public_base="${{ inputs.public-base-url }}"
+
+        [[ -d "$artifacts" ]] || { echo "::error::artifacts dir not found: $artifacts"; exit 1; }
+
+        extra=()
+        [[ "${{ inputs.insecure }}" == "true" ]] && extra+=(--insecure)
+
+        # Longest-known-suffix match keeps multi-part extensions intact
+        # (img.xz, img.qcow2.xz, hyperv.zip.xz, ...). Ordered longest-first -
+        # the loop below takes the first (longest) match.
+        known_exts="hyperv.zip.xz hyperv.zip.zst img.qcow2.xz img.qcow2.zst img.vhdx.xz img.vhdx.zst img.qcow2 img.vhdx hyperv.zip iso.xz iso.zst img.xz img.zst qcow2 vhdx iso img zip xz zst sha asc txt json"
+
+        shopt -s nullglob
+        files=("$artifacts"/*)
+        (( ${#files[@]} )) || { echo "::error::no artifacts in $artifacts"; exit 1; }
+
+        for f in "${files[@]}"; do
+          [[ -f "$f" ]] || continue
+          base="$(basename "$f")"
+          ext=""
+          for cand in $known_exts; do
+            [[ "$base" == *".$cand" ]] && { ext="$cand"; break; }
+          done
+          [[ -n "$ext" ]] || ext="${base##*.}"
+
+          key="${channel}/${family}/${config}-${version}.${ext}"
+          clover2 artifact push "$f" \
+            --bucket "$bucket" \
+            --endpoint "$CLOVER2_S3_ENDPOINT" \
+            --key "$key" \
+            --tag "sha=${GITHUB_SHA:0:7}" \
+            --tag "run_id=${GITHUB_RUN_ID}" \
+            --tag "config=${config}" \
+            --tag "family=${family}" \
+            "${extra[@]}"
+
+          echo "Uploaded ${bucket}/${key}"
+          if [[ -n "$public_base" ]]; then
+            echo "  ${public_base%/}/${bucket}/${key}"
+          fi
+        done

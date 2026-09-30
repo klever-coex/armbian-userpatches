@@ -16,7 +16,8 @@ clover2_ansible_ensure() {
 	[[ "${CLOVER2_ANSIBLE_READY:-"no"}" == "yes" ]] && return 0
 
 	CLOVER2_DEV_REPO="https://github.com/klever-coex/clover2-dev.git"
-	CLOVER2_DEV_COMMIT="${CLOVER2_DEV_COMMIT:-"a958ddafd1b1279012c9e0f3bacd6ec324250cc6"}"
+	[[ -n "${CLOVER2_DEV_COMMIT}" ]] ||
+		exit_with_error "CLOVER2_DEV_COMMIT is not set (expected in _config-clover2-common.conf)"
 	CLOVER2_ANSIBLE_VERSION="10.7.0"
 	CLOVER2_ANSIBLE_BIN_DIR="${CLOVER2_ANSIBLE_BIN_DIR:-"/root/.local/bin"}"
 	CLOVER2_DEV_DIR="${SRC}/cache/clover2/clover2-dev"
@@ -44,14 +45,12 @@ clover2_ansible_ensure() {
 	export PATH="${CLOVER2_ANSIBLE_BIN_DIR}:${PATH}"
 
 	mkdir -p "${CLOVER2_COLLECTIONS_PATH}"
-	run_host_command_logged "${CLOVER2_ANSIBLE_BIN_DIR}/ansible-galaxy" collection build \
-		"${CLOVER2_DEV_DIR}/ansible" --output-path "${SRC}/cache/clover2" --force
-
-	local tarball
-	tarball="$(ls -1 "${SRC}/cache/clover2"/clover2-dev-*.tar.gz | head -1)"
-	[[ -n "${tarball}" ]] || exit_with_error "clover2.dev collection tarball not produced"
 	run_host_command_logged "${CLOVER2_ANSIBLE_BIN_DIR}/ansible-galaxy" collection install \
-		"${tarball}" -p "${CLOVER2_COLLECTIONS_PATH}" --force
+		"${CLOVER2_DEV_DIR}/ansible" -p "${CLOVER2_COLLECTIONS_PATH}" --force
+
+	command -v clover2 >/dev/null 2>&1 || {
+		run_host_command_logged curl -fsSL https://github.com/klever-coex/clover2-cli/releases/latest/download/install.sh | sh
+	}
 
 	CLOVER2_ANSIBLE_READY="yes"
 }

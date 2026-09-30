@@ -1,13 +1,7 @@
 #!/bin/sh
 
-RED='\e[0;31m'
-GREEN='\e[0;32m'
-NC='\e[0m'
-
-echo
-
-. /etc/os-release
-echo "Project version: $GREEN $CLOVER2_VERSION $NC"
-echo "Start in browser: $RED http://$(hostname).local $NC"
-
-echo
+printf '\n'
+. /etc/clover2-release 2>/dev/null
+printf 'Project version: \033[0;32m%s\033[0m\n' "${CLOVER2_VERSION:-unknown}"
+printf 'Start in browser: \033[0;31mhttp://%s.local\033[0m\n' "$(hostname)"
+printf '\n'

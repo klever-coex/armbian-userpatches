@@ -42,10 +42,14 @@ clover2_ros2_configure_dds() {
 		-e ros2_dds_ros_domain_id="${CLOVER2_DDS_DOMAIN_ID:-0}"
 }
 
+clover2_ros2_install() {
+	clover2_ansible_playbook_chroot clover2.dev.install_deps --tags core -e ros_packages_profile=jazzy-2026-06-18
+}
+
 clover2_ros2_main() {
 	clover2_ros2_log "provisioning ROS 2 Jazzy via ansible"
-	clover2_ansible_playbook_chroot clover2.dev.install_deps --tags core
-	clover2_ros2_configure_dds
-	clover2_ros2_install_build_tools
+	LOG_SECTION="clover2_ros2_install" do_with_logging clover2_ros2_install
+	LOG_SECTION="clover2_ros2_configure_dds" do_with_logging clover2_ros2_configure_dds
+	LOG_SECTION="clover2_ros2_install_build_tools" do_with_logging clover2_ros2_install_build_tools
 	clover2_ros2_log "done"
 }

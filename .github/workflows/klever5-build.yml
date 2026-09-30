@@ -1,0 +1,127 @@
+name: Build images for Klever5 (rpi)
+
+on:
+  workflow_dispatch:
+    inputs:
+      clover2_ref:
+        description: "clover2 tag/commit/branch (empty = pinned default)"
+        required: false
+        default: ""
+      upload_s3:
+        description: "Upload artifacts to S3"
+        type: boolean
+        default: true
+  repository_dispatch:
+    types: [clover2-release]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.client_payload.tag || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CLOVER2_PIN: "7ecac13f009048510a8323ce4e7d5f839477ed8a"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-24.04-arm
+            config: klever5-rpi5b
+            board: rpi5b
+            arch: arm64
+            publish: true
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve clover2 ref
+        id: ref
+        run: |
+          set -euo pipefail
+          ref="${{ github.event.client_payload.tag }}"
+          if [[ -z "${ref}" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ref="${{ inputs.clover2_ref }}"
+          fi
+          if [[ -z "${ref}" ]]; then
+            ref="${{ env.CLOVER2_PIN }}" # pinned default = same ref the build uses
+          fi
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "Building clover2 @ ${ref:-<pinned default>}"
+
+      - name: Copy userpatches for builder
+        run: |
+          mkdir -p custom/userpatches
+          cp -r _config*.conf config* extensions firstboot* systemd udev motd \
+                sudoers libcamera-debian libcamera-deb hailo overlay custom/userpatches/
+
+      - name: Restore clover2 build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/drivers/libcamera.sh') }}
+          restore-keys: |
+            clover2-${{ matrix.arch }}-
+
+      - name: Restore prebuilt artifacts cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            build/output/packages-hashed
+            build/output/debs
+            build/cache/rootfs
+          key: artifacts-${{ matrix.config }}-${{ github.sha }}
+          restore-keys: |
+            artifacts-${{ matrix.config }}-
+
+      - uses: ./.github/actions/armbian-build
+        id: armbian
+        with:
+          armbian_token: ${{ secrets.GITHUB_TOKEN }}
+          armbian_target: "${{ matrix.config }}"
+          armbian_runner_clean: "yes" # recommended for Github runners
+
+          armbian_branch: v26.11.0-trunk.54
+          armbian_kernel_ref: commit:2212a454d11b24d171a818fdd709adb4b339ca1f
+
+          armbian_extra_args: >-
+            CLOVER2_COMMIT=${{ steps.ref.outputs.ref }}
+
+      - name: Save clover2 build cache
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/drivers/libcamera.sh') }}
+
+      - name: Save prebuilt artifacts cache
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: |
+            build/output/packages-hashed
+            build/output/debs
+            build/cache/rootfs
+          key: artifacts-${{ matrix.config }}-${{ github.sha }}
+
+      - name: Upload artifacts
+        if: >-
+          ${{
+            (github.event_name == 'push' ||
+             github.event_name == 'workflow_dispatch' ||
+             github.event_name == 'repository_dispatch')
+            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+            && github.event_name != 'pull_request'
+          }}
+        uses: ./.github/actions/upload-artifacts
+        with:
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}
+          family: klever5
+          config: ${{ matrix.config }}
+          version-repo: clover2
+          version-ref: ${{ steps.ref.outputs.ref }}
+        env:
+          CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}

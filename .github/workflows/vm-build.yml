@@ -1,0 +1,84 @@
+name: Build images for Clover2 (VM)
+
+on:
+  workflow_dispatch:
+    inputs:
+      clover2_dev_ref:
+        description: "clover2_dev tag/commit/branch (empty = pinned default)"
+        required: false
+        default: "bd3314612b11c3b62be7d9cb22d9a58775e501af" # feature/tooling HEAD
+      upload_s3:
+        description: "Upload artifacts to S3"
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.clover2_dev_ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-24.04
+            config: clover2-vm-amd64
+            arch: amd64
+            publish: false
+          - runs-on: ubuntu-24.04-arm
+            config: clover2-vm-arm64
+            arch: arm64
+            publish: false
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Copy userpatches for builder
+        run: |
+          mkdir -p custom/userpatches
+          cp -r _config*.conf config* extensions firstboot* systemd udev motd sudoers \
+                libcamera-debian overlay custom/userpatches/
+
+      - name: Restore clover2 build cache
+        uses: actions/cache/restore@v5
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
+          restore-keys: |
+            clover2-${{ matrix.arch }}-
+
+      - uses: ./.github/actions/armbian-build
+        id: armbian
+        with:
+          armbian_token: ${{ secrets.GITHUB_TOKEN }}
+          armbian_target: "${{ matrix.config }}"
+          armbian_runner_clean: "yes" # recommended for Github runners
+
+          armbian_branch: v26.11.0-trunk.54
+          armbian_kernel_ref: tag:v6.18.52
+
+      - name: Save clover2 build cache
+        uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: build/cache/clover2
+          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
+
+      - name: Upload artifacts
+        if: >-
+          ${{
+            github.event_name != 'pull_request'
+            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
+          }}
+        uses: ./.github/actions/upload-artifacts
+        with:
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}
+          family: vm
+          config: ${{ matrix.config }}
+          version-repo: clover2-dev
+          version-ref: ${{ inputs.clover2_dev_ref }}
+        env:
+          CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+          CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+          CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}

@@ -32,6 +32,11 @@ inputs:
     required: false
     default: "current"
 
+  armbian_kernel_ref:
+    description: "Choose kernel ref (start with commit:/tag:/branch:)"
+    required: false
+    default: ""
+
   armbian_release:
     description: "Choose userspace release"
     required: false
@@ -51,16 +56,6 @@ inputs:
     description: "Armbian user interface"
     required: false
     default: "minimal"
-
-  armbian_compress:
-    description: "Armbian compress method"
-    required: false
-    default: "sha,img,xz"
-
-  armbian_extensions:
-    description: "Armbian lists of extensions"
-    required: false
-    default: ""
 
   armbian_pgp_key:
     description: "Armbian PGP key"
@@ -87,8 +82,8 @@ inputs:
     required: false
     default: "https://github.armbian.com/armbian-images.json"
 
-  armbian_clover2_ref:
-    description: "clover2 workspace ref (tag/commit/branch) passed to the build as CLOVER2_WS_COMMIT; empty = the pin inside the clover2 extension"
+  armbian_extra_args:
+    description: "Additional whitespace-separated arguments passed to the Armbian build command; empty NAME= assignments are ignored"
     required: false
     default: ""
 
@@ -110,7 +105,6 @@ runs:
         remove_dotnet: true
         remove_haskell: true
         remove_tool_cache: true
-        remove_swap: true
         remove_packages: >-
           ${{ runner.arch == 'ARM64'
             && 'azure-cli dotnet-sdk-8.0 temurin-* *llvm* mysql* firefox'
@@ -205,6 +199,8 @@ runs:
         fi
 
     - shell: bash
+      env:
+        ARMBIAN_EXTRA_ARGS: ${{ inputs.armbian_extra_args }}
       run: |
 
         # userspace decode
@@ -228,16 +224,25 @@ runs:
         sudo ./compile.sh requirements
         sudo chown -R $USER:$USER .
 
-        # optional clover2 workspace pin
+        # optional additional build arguments
         EXTRA_ARGS=()
-        [[ -n "${{ inputs.armbian_clover2_ref }}" ]] \
-          && EXTRA_ARGS+=("CLOVER2_COMMIT=${{ inputs.CLOVER2_COMMIT }}")
+        if [[ -n "${{ inputs.armbian_extra_args }}" ]]; then
+          read -r -a REQUESTED_EXTRA_ARGS <<< "${{ inputs.armbian_extra_args }}"
+          for arg in "${REQUESTED_EXTRA_ARGS[@]}"; do
+            # Ignore empty variable assignments (for example, NAME=), but keep NAME=value.
+            [[ "$arg" =~ ^[[:alpha:]_][[:alnum:]_]*=$ ]] && continue
+            EXTRA_ARGS+=("$arg")
+          done
+        fi
+
+        # optionally override the kernel git ref selected by the board config
+        [[ -n "${{ inputs.armbian_kernel_ref }}" ]] \
+          && EXTRA_ARGS+=("KERNELBRANCH=${{ inputs.armbian_kernel_ref }}" \
+                          "PINNED_KERNELBRANCH=${{ inputs.armbian_kernel_ref }}")
 
         # execute build command
         ./compile.sh "${{ inputs.armbian_target }}" "${EXTRA_ARGS[@]}" \
         REVISION="${{ env.ARMBIAN_VERSION }}" \
-        # ENABLE_EXTENSIONS="${{ inputs.armbian_extensions }}" \
-        # COMPRESS_OUTPUTIMAGE="${{ inputs.armbian_compress }}" \
         SHARE_LOG="yes" \
         EXPERT="yes"
 
