@@ -94,11 +94,11 @@ clover2_resolve_version() {
 }
 
 clover2_main() {
-	LOG_SECTION="clover2_copy_workspace" do_with_logging clover2_copy_workspace
-	LOG_SECTION="clover2_resolve_version" do_with_logging clover2_resolve_version
-	LOG_SECTION="clover2_install_ros_deps" do_with_logging clover2_install_ros_deps
-	LOG_SECTION="clover2_build" do_with_logging clover2_build
-	LOG_SECTION="clover2_install_build_outputs" do_with_logging clover2_install_build_outputs
-	LOG_SECTION="clover2_fixup_ownership" do_with_logging clover2_fixup_ownership
+	clover2_copy_workspace
+	clover2_resolve_version
+	clover2_install_ros_deps
+	clover2_build
+	clover2_install_build_outputs
+	clover2_fixup_ownership
 	clover2_log "done"
 }

@@ -48,8 +48,8 @@ clover2_ros2_install() {
 
 clover2_ros2_main() {
 	clover2_ros2_log "provisioning ROS 2 Jazzy via ansible"
-	LOG_SECTION="clover2_ros2_install" do_with_logging clover2_ros2_install
-	LOG_SECTION="clover2_ros2_configure_dds" do_with_logging clover2_ros2_configure_dds
-	LOG_SECTION="clover2_ros2_install_build_tools" do_with_logging clover2_ros2_install_build_tools
+	clover2_ros2_install
+	clover2_ros2_configure_dds
+	clover2_ros2_install_build_tools
 	clover2_ros2_log "done"
 }
