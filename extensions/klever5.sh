@@ -102,7 +102,7 @@ klever5_copy_files() {
 	local src="${USERPATCHES_PATH}"
 
 	# for wifi hotspot mode and motd
-	chroot_sdcard_apt_get_install dnsmasq figlet ros-jazzy-v4l2-camera vim
+	chroot_sdcard_apt_get_install dnsmasq figlet vim
 
 	# install cli command
 	chroot_sdcard "curl -fsSL https://github.com/klever-coex/clover2-cli/releases/latest/download/install.sh | sh"
