@@ -20,6 +20,7 @@ function clover2_user_setup_create_user() {
 	[[ -x "${SDCARD}${user_shell}" ]] || exit_with_error "clover2-user-setup: ${user_shell} not in the rootfs"
 
 	display_alert "clover2-user-setup: creating user ${CLOVER2_USER}" "${EXTENSION}" "info"
+	chroot_sdcard "getent group spi >/dev/null || groupadd --system spi"
 	chroot_sdcard "id -u ${CLOVER2_USER} &>/dev/null || useradd -m -s ${user_shell} \
 		-G ${CLOVER2_USER_GROUPS} ${CLOVER2_USER}"
 	chroot_sdcard "echo '${CLOVER2_USER}:${CLOVER2_USER_PASSWORD}' | chpasswd"

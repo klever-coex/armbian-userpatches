@@ -44,7 +44,6 @@ function post_family_tweaks__45_klever5() {
 	klever5_main
 }
 
-
 function extension_prepare_config__klever5() {
 	declare -g CLOVER2_USER_SHELL="${CLOVER2_USER_SHELL:-/bin/zsh}"
 	display_alert "klever5: drone image profile (systemd/udev/motd/firstboot/camera)" "${EXTENSION}" "info"
@@ -103,13 +102,11 @@ klever5_copy_files() {
 	local src="${USERPATCHES_PATH}"
 
 	# for wifi hotspot mode and motd
-	chroot_sdcard_apt_get_install dnsmasq figlet
+	chroot_sdcard_apt_get_install dnsmasq figlet ros-jazzy-v4l2-camera vim
 
 	# install cli command
 	chroot_sdcard "curl -fsSL https://github.com/klever-coex/clover2-cli/releases/latest/download/install.sh | sh"
 
-	# no serial console on the UART that talks to the FCU
-	# sed -i -e 's/\( \|^\)console=serial0,115200\( \|$\)/ /g' -e 's/  */ /g' -e 's/^ //;s/ $//' "${SDCARD}/boot/firmware/cmdline.txt"
 	local ws_assets="${SDCARD}/opt/clover2/ws/src/clover2/tooling/assets"
 	local user="${CLOVER2_USER:-pi}"
 
