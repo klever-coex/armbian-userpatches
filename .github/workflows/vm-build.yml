@@ -82,3 +82,17 @@ jobs:
           CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
           CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
           CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+
+      - name: Telegram notify
+        if: always()
+        uses: klever-coex/ci/.github/actions/release-notify@master
+        with:
+          telegram_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram_chat: ${{ secrets.TELEGRAM_TO }}
+          kind: build
+          status: ${{ job.status }}
+          project: armbian-userpatches
+          ref: ${{ matrix.config }}
+          extra: >-
+            image: ${{ matrix.config }} ·
+            clover2-dev @ ${{ inputs.clover2_dev_ref }}${{ inputs.upload_s3 && ' · uploaded to S3' || '' }}
