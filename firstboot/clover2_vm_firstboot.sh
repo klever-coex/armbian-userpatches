@@ -945,18 +945,13 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			echo -e "\n\e[1m\e[39mNow starting desktop environment...\x1B[0m\n"
 			sleep 1
 			systemctl --no-block start lightdm 2>/dev/null
-			if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-			else
-				systemctl -q enable armbian-disable-autologin.timer
-				systemctl start armbian-disable-autologin.timer
-			fi
+			rm -f /root/.desktop_autologin
 			# logout if logged at console
 			who -la | grep root | grep -q tty1 && exit 1
 		fi
 
 	elif [[ "${desktop_dm}" == "gdm3" ]] && [ -n "$RealName" ]; then
-		# 1st run goes without login
+		# Keep desktop autologin enabled after first login.
 		mkdir -p /etc/gdm3
 		cat <<- EOF > /etc/gdm3/custom.conf
 			[daemon]
@@ -974,14 +969,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			echo -e "\n\e[1m\e[39mNow starting desktop environment...\x1B[0m\n"
 			sleep 1
 			systemctl --no-block start gdm3 2>/dev/null
-			if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-			else
-				(
-					sleep 20
-					sed -i "s/AutomaticLoginEnable.*/AutomaticLoginEnable = false/" /etc/gdm3/custom.conf
-				) &
-			fi
+			rm -f /root/.desktop_autologin
 			# logout if logged at console
 			who -la | grep root | grep -q tty1 && exit 1
 		fi
@@ -999,7 +987,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			EOF
 		fi
 
-		# 1st run goes without login
+		# Keep desktop autologin enabled after first login.
 		cat <<- EOF > /etc/sddm.conf.d/autologin.conf
 			[Autologin]
 			User=$RealUserName
@@ -1008,11 +996,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 		systemctl enable sddm 2>/dev/null
 		systemctl --no-block start sddm 2>/dev/null
 
-		if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-		else
-			systemctl -q enable armbian-disable-autologin.timer
-		fi
+		rm -f /root/.desktop_autologin
 		# logout if logged at console
 		who -la | grep root | grep -q tty1 && exit 1
 

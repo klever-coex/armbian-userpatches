@@ -11,6 +11,7 @@ function extension_prepare_config__clover2_vm() {
 
 function post_family_tweaks__45_clover2_vm() {
 	clover2_vm_setup_firstboot_script
+	clover2_vm_configure_power_management
 }
 
 clover2_vm_log() {
@@ -25,4 +26,25 @@ clover2_vm_setup_firstboot_script() {
 		run_host_command_logged install -m 0755 "${source}" "${destination}"
         clover2_vm_log "firstboot script installed to ${destination}"
 	fi
+}
+
+clover2_vm_configure_power_management() {
+	local user="${CLOVER2_USER:-pi}"
+
+	clover2_vm_log "configuring display timers and automatic screen locking"
+	# Configure the existing VM user without requiring a graphical session.
+	chroot_sdcard "runuser -u ${user@Q} -- dbus-run-session -- bash -e -o pipefail -s" <<-'EOF'
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -s true
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -s 0
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-sleep -s 0
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-off -s 0
+
+	xfconf-query -c xfce4-power-manager \
+		-p /xfce4-power-manager/lock-screen-suspend-hibernate -s false
+	xfconf-query -c xfce4-session -p /shutdown/LockScreen -s false
+
+	gsettings set apps.light-locker lock-after-screensaver 0
+	gsettings set apps.light-locker late-locking false
+	gsettings set apps.light-locker lock-on-suspend false
+	EOF
 }
