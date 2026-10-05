@@ -33,15 +33,16 @@ clover2_vm_configure_power_management() {
 
 	clover2_vm_log "configuring display timers and automatic screen locking"
 	# Configure the existing VM user without requiring a graphical session.
-	chroot_sdcard "runuser -u ${user@Q} -- dbus-run-session -- bash -e -o pipefail -s" <<-'EOF'
-	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -s true
-	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -s 0
-	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-sleep -s 0
-	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-off -s 0
+	# The builder's XDG_RUNTIME_DIR is outside the target rootfs.
+	chroot_sdcard "runuser -u ${user@Q} -- env -u XDG_RUNTIME_DIR dbus-run-session -- bash -e -o pipefail -s" <<-'EOF'
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -n -t bool -s true
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -n -t uint -s 0
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-sleep -n -t uint -s 0
+	xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-off -n -t uint -s 0
 
 	xfconf-query -c xfce4-power-manager \
-		-p /xfce4-power-manager/lock-screen-suspend-hibernate -s false
-	xfconf-query -c xfce4-session -p /shutdown/LockScreen -s false
+		-p /xfce4-power-manager/lock-screen-suspend-hibernate -n -t bool -s false
+	xfconf-query -c xfce4-session -p /shutdown/LockScreen -n -t bool -s false
 
 	gsettings set apps.light-locker lock-after-screensaver 0
 	gsettings set apps.light-locker late-locking false
