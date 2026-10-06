@@ -488,14 +488,13 @@ set_timezone_and_locales() {
 	)
 
 	TZDATA=$(echo "${RES}" | cut -d"," -f1)
-	CCODE=$(echo "${RES}" | cut -d"," -f3 | xargs)
 
 	unset response
 	while [[ ! "${response}" =~ ^(Y|y|N|n)$ ]]; do
 		if [ -z "${SET_LANG_BASED_ON_LOCATION}" ] && [ -n "${TZDATA}" ];then
 			echo -e "Detected timezone: \x1B[92m$TZDATA\x1B[0m"
 			echo ""
-			read -r -p "Set user language based on your location? [Y/n] " response
+			read -r -p "Use timezone based on your location? [Y/n] " response
 			response=${response:-Y}
 		else
 			response=$SET_LANG_BASED_ON_LOCATION
@@ -504,31 +503,26 @@ set_timezone_and_locales() {
 	done
 	# change it only if we have a match and if we agree
 	if [[ "${response}" =~ ^(N|n)$ ]]; then
-		unset CCODE TZDATA
+		unset TZDATA
 	fi
 
-	LOCALES=$(grep territory /usr/share/i18n/locales/* | grep _"$CCODE" | cut -d ":" -f 1 | cut -d "/" -f 6 |
-		xargs -I{} grep {} /usr/share/i18n/SUPPORTED | grep "UTF-8$" | cut -d " " -f 1)
-	# UTF8 is not present everywhere so check again in case it returns empty value
-	[[ -z "$LOCALES" ]] && LOCALES=$(grep territory /usr/share/i18n/locales/* | grep _"$CCODE" | cut -d ":" -f 1 | cut -d "/" -f 6 |
-		xargs -I{} grep {} /usr/share/i18n/SUPPORTED | cut -d " " -f 1)
-	readarray -t options <<< "${LOCALES}"
-
-	if [ -z $PRESET_LOCALE ];then
-		# when having more locales, prompt for choosing one
-		if [[ "${#options[@]}" -gt 1 ]]; then
-			options+=("Skip generating locales")
-			echo -e "\nAt your location, more locales are possible:\n"
-			PS3='Please enter your choice:'
-			select opt in "${options[@]}"; do
-				if [[ " ${options[*]} " == *" ${opt} "* ]]; then
-					LOCALES=${opt}
-					break
-				fi
-			done
-		fi
+	# The VM supports only English and Russian, regardless of geolocation.
+	local -a options=("en_US.UTF-8" "ru_RU.UTF-8" "Skip generating locales")
+	if [[ -z "${PRESET_LOCALE}" ]]; then
+		echo -e "\nChoose your language (English or Russian):\n"
+		PS3='Please enter your choice:'
+		select opt in "${options[@]}"; do
+			if [[ -n "${opt}" ]]; then
+				LOCALES=${opt}
+				break
+			fi
+		done
+		[[ -n "${opt}" ]] || return 1
 	else
-		LOCALES=$PRESET_LOCALE
+		case "${PRESET_LOCALE}" in
+			en_US.UTF-8|ru_RU.UTF-8) LOCALES=${PRESET_LOCALE} ;;
+			*) echo "Unsupported locale: ${PRESET_LOCALE}. Choose en_US.UTF-8 or ru_RU.UTF-8."; return 1 ;;
+		esac
 	fi
 
 	if [[ "${LOCALES}" != *Skip* ]]; then
@@ -555,16 +549,16 @@ set_timezone_and_locales() {
 			return 1
 		fi
 
-		# generate locales (atomic write for locale.gen)
+		# Generate only the two supported locales (atomic write for locale.gen).
 		local _f="/etc/locale.gen"
-		if sed 's/# '"${LOCALES}"'/'"${LOCALES}"'/' "${_f}" > "${_f}.tmp"; then
+		if printf '%s\n' 'en_US.UTF-8 UTF-8' 'ru_RU.UTF-8 UTF-8' > "${_f}.tmp"; then
 			atomic_write "${_f}.tmp" "${_f}" || return 1
 		else
 			rm -f "${_f}.tmp"
 			return 1
 		fi
 		echo -e "Generating locales: \x1B[92m${LOCALES}\x1B[0m"
-		locale-gen "${LOCALES}" > /dev/null 2>&1
+		locale-gen > /dev/null 2>&1 || return 1
 
 		# setting detected locales only for user (idempotent)
 		for rcfile in /home/"$RealUserName"/.bashrc /home/"$RealUserName"/.xsessionrc; do
@@ -945,18 +939,13 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			echo -e "\n\e[1m\e[39mNow starting desktop environment...\x1B[0m\n"
 			sleep 1
 			systemctl --no-block start lightdm 2>/dev/null
-			if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-			else
-				systemctl -q enable armbian-disable-autologin.timer
-				systemctl start armbian-disable-autologin.timer
-			fi
+			rm -f /root/.desktop_autologin
 			# logout if logged at console
 			who -la | grep root | grep -q tty1 && exit 1
 		fi
 
 	elif [[ "${desktop_dm}" == "gdm3" ]] && [ -n "$RealName" ]; then
-		# 1st run goes without login
+		# Keep desktop autologin enabled after first login.
 		mkdir -p /etc/gdm3
 		cat <<- EOF > /etc/gdm3/custom.conf
 			[daemon]
@@ -974,14 +963,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			echo -e "\n\e[1m\e[39mNow starting desktop environment...\x1B[0m\n"
 			sleep 1
 			systemctl --no-block start gdm3 2>/dev/null
-			if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-			else
-				(
-					sleep 20
-					sed -i "s/AutomaticLoginEnable.*/AutomaticLoginEnable = false/" /etc/gdm3/custom.conf
-				) &
-			fi
+			rm -f /root/.desktop_autologin
 			# logout if logged at console
 			who -la | grep root | grep -q tty1 && exit 1
 		fi
@@ -999,7 +981,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 			EOF
 		fi
 
-		# 1st run goes without login
+		# Keep desktop autologin enabled after first login.
 		cat <<- EOF > /etc/sddm.conf.d/autologin.conf
 			[Autologin]
 			User=$RealUserName
@@ -1008,11 +990,7 @@ if [[ -f /root/.not_logged_in_yet ]] && tty -s; then
 		systemctl enable sddm 2>/dev/null
 		systemctl --no-block start sddm 2>/dev/null
 
-		if [ -f /root/.desktop_autologin ]; then
-				rm /root/.desktop_autologin
-		else
-			systemctl -q enable armbian-disable-autologin.timer
-		fi
+		rm -f /root/.desktop_autologin
 		# logout if logged at console
 		who -la | grep root | grep -q tty1 && exit 1
 
