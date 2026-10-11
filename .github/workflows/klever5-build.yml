@@ -105,26 +105,51 @@ jobs:
             build/cache/rootfs
           key: artifacts-${{ matrix.config }}-${{ github.sha }}
 
-      - name: Upload artifacts
-        if: >-
-          ${{
-            (github.event_name == 'push' ||
-             github.event_name == 'workflow_dispatch' ||
-             github.event_name == 'repository_dispatch')
-            && (github.event_name != 'workflow_dispatch' || inputs.upload_s3)
-            && github.event_name != 'pull_request'
-          }}
-        uses: ./.github/actions/upload-artifacts
+      - name: Install clover2 CLI
+        if: github.event_name == 'repository_dispatch' || inputs.upload_s3
+        uses: klever-coex/clover2-cli@v0.0.6
+
+      - name: Checkout version source repository
+        if: github.event_name == 'repository_dispatch' || inputs.upload_s3
+        uses: actions/checkout@v7
         with:
-          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}
-          family: klever5
-          config: ${{ matrix.config }}
-          version-repo: clover2
-          version-ref: ${{ steps.ref.outputs.ref }}
-        env:
-          CLOVER2_S3_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
-          CLOVER2_S3_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          CLOVER2_S3_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          repository: klever-coex/clover2
+          ref: ${{ steps.ref.outputs.ref }}
+          fetch-depth: 0
+          path: version-src
+
+      - name: Compose version and channel
+        id: version
+        if: github.event_name == 'repository_dispatch' || inputs.upload_s3
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd version-src
+          ref="${{ steps.ref.outputs.ref }}"
+          args=()
+          if [[ "$ref" == refs/tags/* || "$ref" == v* ]]; then
+            args+=(--ref "$ref")
+          fi
+          meta="$(clover2 version compose "${args[@]}" --json)"
+          echo "$meta"
+          {
+            echo "version=$(jq -r .version <<<"$meta")"
+            echo "build_mode=$(jq -r .build_mode <<<"$meta")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        if: github.event_name == 'repository_dispatch' || inputs.upload_s3
+        uses: klever-coex/ci/.github/actions/artifact-push@master
+        with:
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*
+          product: klever5
+          platform: ${{ matrix.board }}
+          version: ${{ steps.version.outputs.version }}
+          build-mode: ${{ steps.version.outputs.build_mode }}
+          sha: ${{ github.sha }}
+          s3-endpoint: ${{ secrets.MINIO_ENDPOINT }}
+          s3-access-key: ${{ secrets.MINIO_ACCESS_KEY }}
+          s3-secret-key: ${{ secrets.MINIO_SECRET_KEY }}
 
       - name: Telegram notify
         if: always()
