@@ -68,6 +68,8 @@ jobs:
       - name: Install clover2 CLI
         if: inputs.upload_s3
         uses: klever-coex/clover2-cli@v0.0.6
+        with:
+          detect-version: ""
 
       - name: Checkout version source repository
         if: inputs.upload_s3
