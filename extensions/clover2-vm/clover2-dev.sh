@@ -65,7 +65,7 @@ clover2_dev_prepare_workspace() {
 	fi
 
 	clover2_dev_log "importing simulation sources on the host"
-	run_host_command_logged vcs import --input "${CLOVER2_DEV_DIR}/repos/simulation.yaml" "${CLOVER2_DEV_DIR}/src"
+	run_host_command_logged vcs import --input "${CLOVER2_DEV_DIR}/repos/simulation_stable.yaml" "${CLOVER2_DEV_DIR}/src"
 
 	local px4_prebuilt_dir="${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/prebuilt"
 	run_host_command_logged mkdir -p "${px4_prebuilt_dir}"
