@@ -101,12 +101,13 @@ jobs:
         if: inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
         with:
-          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.{qcow2,ova}
           product: simulator
           platform: ${{ matrix.arch }}
           version: ${{ steps.version.outputs.version }}
           build-mode: ${{ steps.version.outputs.build_mode }}
           sha: ${{ github.sha }}
+          type: "image"
           s3-endpoint: ${{ secrets.MINIO_ENDPOINT }}
           s3-access-key: ${{ secrets.MINIO_ACCESS_KEY }}
           s3-secret-key: ${{ secrets.MINIO_SECRET_KEY }}
