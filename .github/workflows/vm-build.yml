@@ -106,7 +106,7 @@ jobs:
         if: inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
         with:
-          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.{qcow2,ova}
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.qcow2,${{ steps.armbian.outputs.armbian_artifacts }}/*.ova
           product: simulator
           platform: ${{ matrix.arch }}
           version: ${{ steps.version.outputs.version }}
