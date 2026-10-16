@@ -58,6 +58,9 @@ jobs:
           armbian_branch: v26.11.0-trunk.54
           armbian_kernel_ref: tag:v6.18.52
 
+          armbian_extra_args: >-
+            CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
+
       - name: Save clover2 build cache
         uses: actions/cache/save@v5
         if: always()
@@ -103,7 +106,7 @@ jobs:
         if: inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
         with:
-          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.{qcow2,ova}
+          artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.qcow2,${{ steps.armbian.outputs.armbian_artifacts }}/*.ova
           product: simulator
           platform: ${{ matrix.arch }}
           version: ${{ steps.version.outputs.version }}
