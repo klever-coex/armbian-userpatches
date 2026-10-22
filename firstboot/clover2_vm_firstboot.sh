@@ -507,7 +507,7 @@ set_timezone_and_locales() {
 	fi
 
 	# The VM supports only English and Russian, regardless of geolocation.
-	local -a options=("en_US.UTF-8" "ru_RU.UTF-8" "Skip generating locales")
+	local -a options=("en_US.UTF-8" "ru_RU.UTF-8")
 	if [[ -z "${PRESET_LOCALE}" ]]; then
 		echo -e "\nChoose your language (English or Russian):\n"
 		PS3='Please enter your choice:'
@@ -525,60 +525,56 @@ set_timezone_and_locales() {
 		esac
 	fi
 
-	if [[ "${LOCALES}" != *Skip* ]]; then
-
-		if [ -z $PRESET_TIMEZONE ];then
-			# if TZDATA was not detected, we need to select one
-			if [[ -z ${TZDATA} ]]; then
-				TZDATA=$(tzselect | tail -1)
-			fi
-			echo ""
-		else
-			TZDATA=$PRESET_TIMEZONE
+	if [ -z $PRESET_TIMEZONE ];then
+		# if TZDATA was not detected, we need to select one
+		if [[ -z ${TZDATA} ]]; then
+			TZDATA=$(tzselect | tail -1)
 		fi
-
-		timedatectl set-timezone "${TZDATA}"
-		dpkg-reconfigure --frontend=noninteractive tzdata > /dev/null 2>&1
-
-		# change default locales (atomic write)
-		local _f="/etc/default/locale"
-		if sed "s/=.*/=$(echo ${LOCALES} | cut -d" " -f1)/g" "${_f}" > "${_f}.tmp"; then
-			atomic_write "${_f}.tmp" "${_f}" || return 1
-		else
-			rm -f "${_f}.tmp"
-			return 1
-		fi
-
-		# Generate only the two supported locales (atomic write for locale.gen).
-		local _f="/etc/locale.gen"
-		if printf '%s\n' 'en_US.UTF-8 UTF-8' 'ru_RU.UTF-8 UTF-8' > "${_f}.tmp"; then
-			atomic_write "${_f}.tmp" "${_f}" || return 1
-		else
-			rm -f "${_f}.tmp"
-			return 1
-		fi
-		echo -e "Generating locales: \x1B[92m${LOCALES}\x1B[0m"
-		locale-gen > /dev/null 2>&1 || return 1
-
-		# setting detected locales only for user (idempotent)
-		for rcfile in /home/"$RealUserName"/.bashrc /home/"$RealUserName"/.xsessionrc; do
-			if [[ ! -e "$rcfile" ]]; then
-				# Create empty file with proper ownership before appending; leave
-				# ownership alone if the file already exists (user may have customized).
-				touch -- "$rcfile"
-				chown -- "$RealUserName":"$RealUserName" "$rcfile"
-			fi
-			if ! grep -q "^export LC_ALL=$LOCALES" "$rcfile" 2>/dev/null; then
-				{
-					cat -- "$rcfile"
-					echo "export LC_ALL=$LOCALES"
-					echo "export LANG=$LOCALES"
-					echo "export LANGUAGE=$LOCALES"
-				} > "${rcfile}.tmp" && atomic_write "${rcfile}.tmp" "$rcfile" "" "$RealUserName:$RealUserName" || return 1
-			fi
-		done
-
+		echo ""
+	else
+		TZDATA=$PRESET_TIMEZONE
 	fi
+
+	timedatectl set-timezone "${TZDATA}"
+	dpkg-reconfigure --frontend=noninteractive tzdata > /dev/null 2>&1
+
+	# change default locales (atomic write)
+	local _f="/etc/default/locale"
+	if sed "s/=.*/=$(echo ${LOCALES} | cut -d" " -f1)/g" "${_f}" > "${_f}.tmp"; then
+		atomic_write "${_f}.tmp" "${_f}" || return 1
+	else
+		rm -f "${_f}.tmp"
+		return 1
+	fi
+
+	# Generate only the two supported locales (atomic write for locale.gen).
+	local _f="/etc/locale.gen"
+	if printf '%s\n' 'en_US.UTF-8 UTF-8' 'ru_RU.UTF-8 UTF-8' > "${_f}.tmp"; then
+		atomic_write "${_f}.tmp" "${_f}" || return 1
+	else
+		rm -f "${_f}.tmp"
+		return 1
+	fi
+	echo -e "Generating locales: \x1B[92m${LOCALES}\x1B[0m"
+	locale-gen > /dev/null 2>&1 || return 1
+
+	# setting detected locales only for user (idempotent)
+	for rcfile in /home/"$RealUserName"/.bashrc /home/"$RealUserName"/.xsessionrc; do
+		if [[ ! -e "$rcfile" ]]; then
+			# Create empty file with proper ownership before appending; leave
+			# ownership alone if the file already exists (user may have customized).
+			touch -- "$rcfile"
+			chown -- "$RealUserName":"$RealUserName" "$rcfile"
+		fi
+		if ! grep -q "^export LC_ALL=$LOCALES" "$rcfile" 2>/dev/null; then
+			{
+				cat -- "$rcfile"
+				echo "export LC_ALL=$LOCALES"
+				echo "export LANG=$LOCALES"
+				echo "export LANGUAGE=$LOCALES"
+			} > "${rcfile}.tmp" && atomic_write "${rcfile}.tmp" "$rcfile" "" "$RealUserName:$RealUserName" || return 1
+		fi
+	done
 }
 
 add_profile_sync_settings() {
