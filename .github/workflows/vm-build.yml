@@ -34,39 +34,54 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Copy userpatches for builder
-        run: |
-          mkdir -p custom/userpatches
-          cp -r _config*.conf config* extensions firstboot* systemd udev motd sudoers \
-                libcamera-debian overlay custom/userpatches/
+      # Temporarily disabled while testing artifact uploads.
+      # - name: Copy userpatches for builder
+      #   run: |
+      #     mkdir -p custom/userpatches
+      #     cp -r _config*.conf config* extensions firstboot* systemd udev motd sudoers \
+      #           libcamera-debian overlay custom/userpatches/
 
-      - name: Restore clover2 build cache
-        uses: actions/cache/restore@v5
-        with:
-          path: build/cache/clover2
-          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
-          restore-keys: |
-            clover2-${{ matrix.arch }}-
+      # - name: Restore clover2 build cache
+      #   uses: actions/cache/restore@v5
+      #   with:
+      #     path: build/cache/clover2
+      #     key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
+      #     restore-keys: |
+      #       clover2-${{ matrix.arch }}-
 
-      - uses: ./.github/actions/armbian-build
+      # - uses: ./.github/actions/armbian-build
+      #   id: armbian
+      #   with:
+      #     armbian_token: ${{ secrets.GITHUB_TOKEN }}
+      #     armbian_target: "${{ matrix.config }}"
+      #     armbian_runner_clean: "yes" # recommended for Github runners
+
+      #     armbian_branch: v26.11.0-trunk.54
+      #     armbian_kernel_ref: tag:v6.18.52
+
+      #     armbian_extra_args: >-
+      #       CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
+
+      # - name: Save clover2 build cache
+      #   uses: actions/cache/save@v5
+      #   if: always()
+      #   with:
+      #     path: build/cache/clover2
+      #     key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
+
+      - name: Create test artifact (1 GiB)
         id: armbian
-        with:
-          armbian_token: ${{ secrets.GITHUB_TOKEN }}
-          armbian_target: "${{ matrix.config }}"
-          armbian_runner_clean: "yes" # recommended for Github runners
-
-          armbian_branch: v26.11.0-trunk.54
-          armbian_kernel_ref: tag:v6.18.52
-
-          armbian_extra_args: >-
-            CLOVER2_DEV_COMMIT=${{ inputs.clover2_dev_ref }}
-
-      - name: Save clover2 build cache
-        uses: actions/cache/save@v5
-        if: always()
-        with:
-          path: build/cache/clover2
-          key: clover2-${{ matrix.arch }}-${{ hashFiles('libcamera-debian/**', 'extensions/clover2/clover2-libcamera.sh') }}
+        shell: bash
+        env:
+          IMAGE_CONFIG: ${{ matrix.config }}
+          ARTIFACT_EXTENSION: ova
+        run: |
+          set -euo pipefail
+          artifacts_dir="${GITHUB_WORKSPACE}/build/output/images"
+          mkdir -p "$artifacts_dir"
+          dd if=/dev/urandom of="${artifacts_dir}/${IMAGE_CONFIG}-upload-test.${ARTIFACT_EXTENSION}" \
+            bs=1M count=1024 status=progress
+          echo "armbian_artifacts=${artifacts_dir}" >> "$GITHUB_OUTPUT"
 
       - name: Install clover2 CLI
         if: inputs.upload_s3
@@ -105,6 +120,9 @@ jobs:
       - name: Upload artifacts
         if: inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
+        env:
+          HTTP_PROXY: http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
+          HTTPS_PROXY: http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
         with:
           artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.qcow2,${{ steps.armbian.outputs.armbian_artifacts }}/*.ova
           product: simulator
