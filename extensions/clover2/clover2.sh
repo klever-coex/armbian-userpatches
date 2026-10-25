@@ -79,15 +79,15 @@ clover2_build() {
 }
 
 clover2_resolve_version() {
-	clover2_ansible_ensure
+	local version hash
 
-	if version="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field version)" 		&& hash="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field git_hash)"; then
-		:
-	else
-		display_alert "clover2: clover2-cli version compose failed, falling back to git describe" "${EXTENSION}" "wrn"
-		version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --always 2>/dev/null || echo unknown)"
-		hash="$(git -C "${CLOVER2_WS_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+	hash="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field git_hash)"
+	version="$(git -C "${CLOVER2_WS_DIR}" describe --tags --exact-match 2>/dev/null)"
+
+	if [[ -z "$version" ]]; then
+		version="$(cd "${CLOVER2_WS_DIR}" && clover2 version compose --field version)";
 	fi
+
 	CLOVER2_VERSION="${version}"
 	CLOVER2_GIT_HASH="${hash}"
 	clover2_log "clover2 version: ${CLOVER2_VERSION} (${CLOVER2_GIT_HASH})"
