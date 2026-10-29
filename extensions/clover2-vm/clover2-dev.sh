@@ -1,8 +1,13 @@
 # Overrides:
 #   CLOVER2_DEV_COMMIT: clover2-dev tag or commit (default: master)
+#   CLOVER2_DEV_REPO_CONFIG: clover2-dev repo config file (default: simulation_stable)
+#   CLOVER2_DEV_DDS_PROFILE: DDS profile (default: shm)
+#   CLOVER2_DEV_DDS_RMW: DDS RMW (default: fastdds)
+#   CLOVER2_DEV_DDS_DOMAIN_ID: DDS domain ID (default: 0)
 #   PREBUILT_PX4_VERSION: prebuilt PX4 version (default: v1.16.1)
 #   PREBUILT_PX4_URL: prebuilt PX4 download URL (default: https://downloads.klevercoex.ru/px4_prebuilt/)
 
+enable_extension "clover2-ansible"
 enable_extension "clover2-ws"
 
 function extension_prepare_config__clover2_dev() {
@@ -65,7 +70,7 @@ clover2_dev_prepare_workspace() {
 	fi
 
 	clover2_dev_log "importing simulation sources on the host"
-	run_host_command_logged vcs import --input "${CLOVER2_DEV_DIR}/repos/simulation.yaml" "${CLOVER2_DEV_DIR}/src"
+	run_host_command_logged vcs import --input "${CLOVER2_DEV_DIR}/repos/${CLOVER2_DEV_REPO_CONFIG:-simulation_stable}.yaml" "${CLOVER2_DEV_DIR}/src"
 
 	local px4_prebuilt_dir="${CLOVER2_DEV_DIR}/src/clover2-sim/px4_sim/prebuilt"
 	run_host_command_logged mkdir -p "${px4_prebuilt_dir}"
@@ -82,6 +87,14 @@ clover2_dev_install_bashrc() {
 	EOF
 }
 
+clover2_ros2_configure_dds() {
+	clover2_dev_log "configuring DDS via ros2_dds role"
+	clover2_ansible_playbook_chroot clover2.dev.configure_dds --tags ros2_dds \
+		-e ros2_dds_profile="${CLOVER2_DEV_DDS_PROFILE:-shm}" \
+		-e ros2_dds_rmw="${CLOVER2_DEV_DDS_RMW:-fastdds}" \
+		-e ros2_dds_ros_domain_id="${CLOVER2_DEV_DDS_DOMAIN_ID:-0}"
+}
+
 clover2_dev_fixup_ownership() {
 	chroot_sdcard chown -R ${CLOVER2_USER:-pi}:${CLOVER2_USER:-pi} /home/pi/clover2-dev
 }
@@ -92,6 +105,7 @@ clover2_dev_main() {
 	clover2_rosdep_install_chroot "/home/pi/clover2-dev/src" "--ignore-src"
 	clover2_build_ws_chroot "/home/pi/clover2-dev"
 	clover2_dev_fixup_ownership
+	clover2_ros2_configure_dds
     clover2_dev_install_bashrc
 	clover2_dev_log "done"
 }
