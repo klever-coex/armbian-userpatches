@@ -105,6 +105,10 @@ clover2_vm_firefox_install_policies() {
 	      {
 	        "url": "https://klever-doc.tech/",
 	        "name": "Klever DOC"
+	      },
+		  {
+	        "url": "http://localhost:8081/",
+	        "name": "Image Topics"
 	      }
 	    ]
 	  }
