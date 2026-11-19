@@ -142,6 +142,9 @@ jobs:
       - name: Upload artifacts
         if: github.event_name == 'repository_dispatch' || inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
+        env:
+          HTTP_PROXY: &proxy_url http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
+          HTTPS_PROXY: *proxy_url
         with:
           artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.zip
           product: klever5

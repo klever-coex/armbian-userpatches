@@ -106,8 +106,8 @@ jobs:
         if: inputs.upload_s3
         uses: klever-coex/ci/.github/actions/artifact-push@master
         env:
-          HTTP_PROXY: http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
-          HTTPS_PROXY: http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
+          HTTP_PROXY: &proxy_url http://proxyuser:${{ secrets.PROXY_PASSWORD }}@${{ secrets.PROXY_IP }}
+          HTTPS_PROXY: *proxy_url
         with:
           artifacts: ${{ steps.armbian.outputs.armbian_artifacts }}/*.qcow2,${{ steps.armbian.outputs.armbian_artifacts }}/*.ova
           product: simulator
